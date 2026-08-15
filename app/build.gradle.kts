@@ -1,3 +1,5 @@
+import org.jetbrains.kotlin.konan.target.HostManager
+
 plugins {
     alias(libs.plugins.kotlin.multiplatform)
     alias(libs.plugins.android.application)
@@ -12,14 +14,19 @@ kotlin {
         }
     }
 
-    listOf(
-        iosX64(),
-        iosArm64(),
-        iosSimulatorArm64()
-    ).forEach { iosTarget ->
-        iosTarget.binaries.framework {
-            baseName = "RickAndMortyApp"
-            isStatic = true
+    // iOS targets are only declared on macOS hosts: linking their framework and
+    // test binaries requires Xcode, which isn't available on Windows/Linux CI.
+    // commonMain still builds and is fully usable once opened on a Mac.
+    if (HostManager.hostIsMac) {
+        listOf(
+            iosX64(),
+            iosArm64(),
+            iosSimulatorArm64()
+        ).forEach { iosTarget ->
+            iosTarget.binaries.framework {
+                baseName = "RickAndMortyApp"
+                isStatic = true
+            }
         }
     }
 
@@ -60,15 +67,15 @@ kotlin {
 android {
     namespace = "com.gimenes.alex.rickandmorty"
     compileSdk {
-        version = release(36) {
-            minorApiLevel = 1
+        version = release(37) {
+            minorApiLevel = 0
         }
     }
 
     defaultConfig {
         applicationId = "com.gimenes.alex.rickandmorty"
         minSdk = 24
-        targetSdk = 36
+        targetSdk = 37
         versionCode = 1
         versionName = "1.0"
 

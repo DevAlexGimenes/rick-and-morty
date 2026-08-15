@@ -2,7 +2,9 @@ package com.gimenes.alex.rickandmorty.feature.characters
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -18,10 +20,15 @@ fun CharactersScreen(
     modifier: Modifier = Modifier,
     viewModel: CharactersViewModel = koinViewModel()
 ) {
-    Box(modifier = modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        Text(
-            text = "Characters - coming soon",
-            style = MaterialTheme.typography.headlineSmall
-        )
+    Scaffold(modifier = modifier.fillMaxSize()) { innerPadding ->
+        Box(
+            modifier = Modifier.fillMaxSize().padding(innerPadding),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = "Characters - coming soon",
+                style = MaterialTheme.typography.headlineSmall
+            )
+        }
     }
 }
