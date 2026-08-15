@@ -1,3 +1,5 @@
+import org.jetbrains.kotlin.konan.target.HostManager
+
 plugins {
     alias(libs.plugins.kotlin.multiplatform)
     alias(libs.plugins.android.library)
@@ -11,11 +13,15 @@ kotlin {
         }
     }
 
-    listOf(
-        iosX64(),
-        iosArm64(),
-        iosSimulatorArm64()
-    )
+    // iOS targets are only declared on macOS hosts: their native link/test
+    // tasks require Xcode, which isn't available on Windows/Linux CI.
+    if (HostManager.hostIsMac) {
+        listOf(
+            iosX64(),
+            iosArm64(),
+            iosSimulatorArm64()
+        )
+    }
 
     sourceSets {
         commonMain.dependencies {
@@ -35,8 +41,8 @@ kotlin {
 android {
     namespace = "com.gimenes.alex.rickandmorty.core.data"
     compileSdk {
-        version = release(36) {
-            minorApiLevel = 1
+        version = release(37) {
+            minorApiLevel = 0
         }
     }
     defaultConfig {
