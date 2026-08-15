@@ -1,5 +1,6 @@
 package com.gimenes.alex.rickandmorty.di
 
+import com.gimenes.alex.rickandmorty.core.data.di.dataModule
 import com.gimenes.alex.rickandmorty.core.database.di.databaseModule
 import com.gimenes.alex.rickandmorty.core.network.di.networkModule
 import com.gimenes.alex.rickandmorty.feature.characters.di.charactersModule
@@ -13,6 +14,7 @@ import org.koin.dsl.KoinAppDeclaration
 val sharedAppModules: List<Module> = listOf(
     networkModule,
     databaseModule,
+    dataModule,
     charactersModule,
     quizModule,
     guessCharacterModule
