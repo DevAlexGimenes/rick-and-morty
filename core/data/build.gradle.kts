@@ -31,9 +31,17 @@ kotlin {
             implementation(project(":core:common"))
             implementation(libs.kotlinx.coroutines.core)
             implementation(libs.kotlinx.serialization.json)
+            implementation(libs.kotlinx.datetime)
+            implementation(project.dependencies.platform(libs.koin.bom))
+            implementation(libs.koin.core)
         }
         commonTest.dependencies {
             implementation(kotlin("test"))
+            implementation(libs.kotlinx.coroutines.test)
+            implementation(libs.ktor.client.core)
+            implementation(libs.ktor.client.mock)
+            implementation(libs.ktor.client.content.negotiation)
+            implementation(libs.ktor.serialization.kotlinx.json)
         }
     }
 }

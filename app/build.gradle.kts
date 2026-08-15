@@ -36,6 +36,7 @@ kotlin {
             implementation(project(":core:domain"))
             implementation(project(":core:network"))
             implementation(project(":core:database"))
+            implementation(project(":core:data"))
             implementation(project(":feature:characters"))
             implementation(project(":feature:quiz"))
             implementation(project(":feature:guesscharacter"))
