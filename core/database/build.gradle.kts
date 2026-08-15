@@ -29,6 +29,11 @@ kotlin {
             implementation(libs.kotlinx.coroutines.core)
             implementation(libs.androidx.room.runtime)
             implementation(libs.androidx.sqlite.bundled)
+            implementation(project.dependencies.platform(libs.koin.bom))
+            implementation(libs.koin.core)
+        }
+        androidMain.dependencies {
+            implementation(libs.koin.android)
         }
         commonTest.dependencies {
             implementation(kotlin("test"))
@@ -41,6 +46,8 @@ kotlin {
                 implementation(libs.kotlinx.coroutines.test)
                 implementation(libs.androidx.junit)
                 implementation(libs.androidx.espresso.core)
+                implementation(project.dependencies.platform(libs.koin.bom))
+                implementation(libs.koin.android)
             }
         }
     }
