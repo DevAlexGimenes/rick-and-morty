@@ -2,6 +2,7 @@ package com.gimenes.alex.rickandmorty.core.database
 
 import androidx.test.core.app.ApplicationProvider
 import com.gimenes.alex.rickandmorty.core.database.di.databaseModule
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Before
@@ -14,9 +15,13 @@ import org.koin.dsl.koinApplication
 import kotlin.test.assertEquals
 
 /**
- * Proves that [RickAndMortyDatabase] - the real app database (issue #4, infrastructure only) -
- * both instantiates and is retrievable through Koin DI on Android, per the issue's acceptance
- * criteria ("DB instantiates and is injectable ... in a smoke test").
+ * Proves that [RickAndMortyDatabase] both instantiates and is retrievable through Koin DI on
+ * Android. Originally a smoke test over the issue #4 placeholder schema; now exercises the real
+ * character cache schema ([CharacterEntity]/[CharacterDao], issue #5) instead, since the
+ * placeholder was removed from [RickAndMortyDatabase]. The more detailed DAO behavior (round-trip
+ * field fidelity, filtering, upsert-not-duplicate semantics) lives in
+ * [CharacterDaoInstrumentedTest]; this file stays focused on "the real DB instantiates and is
+ * injectable end-to-end".
  *
  * Uses a standalone [koinApplication] instance rather than the global `startKoin`/`stopKoin`
  * so this test doesn't depend on / interfere with app-wide Koin state. See
@@ -53,11 +58,11 @@ class RickAndMortyDatabaseInstrumentedTest {
     @Test
     fun databaseIsInjectableAndUsable() = runTest {
         // Retrieved via the database instance directly.
-        val dao = database.spikeItemDao()
-        dao.insert(SpikeItemEntity(name = "Injected Rick"))
-        dao.insert(SpikeItemEntity(name = "Injected Morty"))
+        val dao = database.characterDao()
+        dao.upsert(smokeTestCharacter(id = 1, name = "Injected Rick"))
+        dao.upsert(smokeTestCharacter(id = 2, name = "Injected Morty"))
 
-        val all = dao.getAll()
+        val all = dao.getAll().first()
 
         assertEquals(2, all.size)
         assertEquals(listOf("Injected Rick", "Injected Morty"), all.map { it.name })
@@ -67,10 +72,23 @@ class RickAndMortyDatabaseInstrumentedTest {
     fun daoBindingIsAlsoInjectableDirectlyFromKoin() = runTest {
         // Proves the per-DAO Koin binding in databaseModule resolves independently of manually
         // fetching RickAndMortyDatabase and calling the DAO accessor on it.
-        val dao: SpikeItemDao = koinApp.koin.get()
+        val dao: CharacterDao = koinApp.koin.get()
 
-        dao.insert(SpikeItemEntity(name = "Directly Injected Summer"))
+        dao.upsert(smokeTestCharacter(id = 1, name = "Directly Injected Summer"))
 
-        assertEquals(listOf("Directly Injected Summer"), dao.getAll().map { it.name })
+        assertEquals(listOf("Directly Injected Summer"), dao.getAll().first().map { it.name })
     }
+
+    private fun smokeTestCharacter(id: Int, name: String) = CharacterEntity(
+        id = id,
+        name = name,
+        status = "Alive",
+        species = "Human",
+        type = "",
+        gender = "Male",
+        originName = "Earth",
+        locationName = "Earth",
+        imageUrl = "https://example.com/$id.png",
+        cachedAt = 0L
+    )
 }
