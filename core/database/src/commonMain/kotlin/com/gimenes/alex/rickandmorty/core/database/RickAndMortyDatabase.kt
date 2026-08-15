@@ -15,15 +15,23 @@ const val RICK_AND_MORTY_DB_FILE_NAME = "rickandmorty.db"
  * driver setup, and DI wiring, with [SpikeItemEntity]/[SpikeItemDao] kept here purely as a
  * placeholder because Room's KSP processor requires `@Database.entities` to be non-empty
  * ("@Database annotation must specify list of entities", verified by attempting an empty list
- * before settling on this). Issue #5 replaces that placeholder with the real character cache
- * schema ([CharacterEntity]/[CharacterDao]); the game-state schema (issue #6) will add to the
- * entity list alongside it. Bumped to version 2 for this schema change - there's no shipped data
- * to migrate yet, so no `Migration` is defined.
+ * before settling on this). Issue #5 replaced that placeholder with the real character cache
+ * schema ([CharacterEntity]/[CharacterDao]). Issue #6 adds the local game-state schema alongside
+ * it: [QuizResultEntity]/[QuizResultDao] (quiz result history) and [StreakEntity]/[StreakDao]
+ * (guess-character streak state) - bumped to version 3 for this schema change. There's no shipped
+ * data to migrate yet (app not yet released), so no `Migration` is defined for either version
+ * bump.
  */
-@Database(entities = [CharacterEntity::class], version = 2, exportSchema = true)
+@Database(
+    entities = [CharacterEntity::class, QuizResultEntity::class, StreakEntity::class],
+    version = 3,
+    exportSchema = true
+)
 @ConstructedBy(RickAndMortyDatabaseConstructor::class)
 abstract class RickAndMortyDatabase : RoomDatabase() {
     abstract fun characterDao(): CharacterDao
+    abstract fun quizResultDao(): QuizResultDao
+    abstract fun streakDao(): StreakDao
 }
 
 /**
