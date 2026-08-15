@@ -35,7 +35,11 @@ fun App() {
                 )
             }
             composable(Routes.GUESS_CHARACTER) {
-                GuessCharacterScreen()
+                GuessCharacterScreen(
+                    onExit = {
+                        navController.popBackStack(Routes.HOME, inclusive = false)
+                    }
+                )
             }
             composable(Routes.CHARACTERS) {
                 CharactersScreen()
