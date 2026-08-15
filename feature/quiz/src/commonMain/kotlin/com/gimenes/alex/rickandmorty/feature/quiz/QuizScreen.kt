@@ -438,6 +438,7 @@ private fun QuestionContent(
             state.options.forEachIndexed { index, option ->
                 AnswerOptionButton(
                     text = option,
+                    optionLetter = 'A' + index,
                     optionState = answerOptionState(index, state),
                     enabled = !state.isLocked,
                     onClick = { onSelectAnswer(index) },
@@ -472,10 +473,18 @@ private fun answerOptionState(index: Int, state: QuizUiState.Question): AnswerOp
  * not color alone; the correct/incorrect reveal always pairs its color with an icon and an
  * explicit "Correct"/"Incorrect" text label - colorblind-safe by construction, not just by color
  * choice. Minimum 56dp height per the a11y spec ([MIN_ANSWER_HEIGHT]).
+ *
+ * Each option is prefixed with an [optionLetter] badge (A/B/C/D, issue #35). The badge is a plain
+ * [Text] living inside the same [Surface] as the option copy - it does not carry its own
+ * semantics or content description, so it is picked up by the existing merged-semantics
+ * announcement (the whole row is one accessibility node, per Compose's default `clickable`
+ * merging) alongside the full option text rather than being announced as a separate, disconnected
+ * element. E.g. a screen reader announces "A, Rick Sanchez", not just "A".
  */
 @Composable
 private fun AnswerOptionButton(
     text: String,
+    optionLetter: Char,
     optionState: AnswerOptionState,
     enabled: Boolean,
     onClick: () -> Unit,
@@ -526,12 +535,19 @@ private fun AnswerOptionButton(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween,
         ) {
-            Text(
-                text = text,
-                style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.onSurface,
+            Row(
                 modifier = Modifier.weight(1f),
-            )
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(spacing.sm),
+            ) {
+                AnswerLetterBadge(letter = optionLetter, optionState = optionState)
+                Text(
+                    text = text,
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier.weight(1f),
+                )
+            }
             when (optionState) {
                 AnswerOptionState.CORRECT -> FeedbackTag(
                     label = "Correct",
@@ -547,6 +563,38 @@ private fun AnswerOptionButton(
 
                 AnswerOptionState.NEUTRAL -> Unit
             }
+        }
+    }
+}
+
+/**
+ * Small round A/B/C/D badge (issue #35) prefixing each answer option. Purely additive/visual -
+ * see [AnswerOptionButton]'s kdoc for how it stays accessible without becoming a separate,
+ * disconnected accessibility node. Uses the existing [PortalRingShape] token ("badges, streak
+ * pips, avatar frames" per its own doc) and [RickAndMortyExtendedTheme] color/spacing tokens -
+ * no new hardcoded shape or color values.
+ */
+@Composable
+private fun AnswerLetterBadge(letter: Char, optionState: AnswerOptionState) {
+    val spacing = RickAndMortyExtendedTheme.spacing
+    val extendedColors = RickAndMortyExtendedTheme.extendedColors
+    val (containerColor, contentColor) = when (optionState) {
+        AnswerOptionState.CORRECT -> extendedColors.feedbackCorrect to extendedColors.onFeedbackCorrect
+        AnswerOptionState.INCORRECT -> extendedColors.feedbackIncorrect to extendedColors.onFeedbackIncorrect
+        AnswerOptionState.NEUTRAL -> MaterialTheme.colorScheme.primaryContainer to
+            MaterialTheme.colorScheme.onPrimaryContainer
+    }
+    Surface(
+        shape = PortalRingShape,
+        color = containerColor,
+        modifier = Modifier.size(spacing.lg),
+    ) {
+        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            Text(
+                text = letter.toString(),
+                style = MaterialTheme.typography.labelLarge,
+                color = contentColor,
+            )
         }
     }
 }
