@@ -28,7 +28,11 @@ fun App() {
                 )
             }
             composable(Routes.QUIZ) {
-                QuizScreen()
+                QuizScreen(
+                    onExit = {
+                        navController.popBackStack(Routes.HOME, inclusive = false)
+                    }
+                )
             }
             composable(Routes.GUESS_CHARACTER) {
                 GuessCharacterScreen()
