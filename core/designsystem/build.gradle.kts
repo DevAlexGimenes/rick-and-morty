@@ -37,6 +37,7 @@ kotlin {
         }
         androidMain.dependencies {
             implementation(libs.ktor.client.okhttp)
+            implementation(libs.androidx.activity.compose)
         }
         if (HostManager.hostIsMac) {
             iosMain.dependencies {
