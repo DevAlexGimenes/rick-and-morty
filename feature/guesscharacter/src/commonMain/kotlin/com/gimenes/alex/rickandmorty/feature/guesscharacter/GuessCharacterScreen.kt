@@ -51,6 +51,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import com.gimenes.alex.rickandmorty.core.designsystem.backhandler.PlatformBackHandler
 import com.gimenes.alex.rickandmorty.core.designsystem.component.CachedCharacterImage
 import com.gimenes.alex.rickandmorty.core.designsystem.theme.RickAndMortyExtendedTheme
 import com.gimenes.alex.rickandmorty.core.designsystem.theme.RickAndMortyShapes
@@ -74,6 +75,15 @@ import org.koin.compose.viewmodel.koinViewModel
  * (not plain `remember`) so the dialog survives a configuration change without needing ViewModel
  * involvement.
  *
+ * ### The system/hardware back gesture is intercepted too, not just the in-screen exit button
+ * The in-screen exit [IconButton] (in [RoundContent]) was the only way to trigger the exit
+ * confirmation until issue #17: the platform's own back button/gesture went straight to
+ * `navigation-compose`'s default behavior (popping the back stack), silently discarding an
+ * active streak without ever showing [ExitConfirmationDialog]. [PlatformBackHandler] below closes
+ * that gap on Android (see its kdoc for why this needs an expect/actual rather than being plain
+ * common code, and why iOS is a documented no-op).
+ *
+
  * @param onExit invoked when the player leaves the flow (Run Ended's "Home" CTA, or a confirmed/
  *  no-confirmation-needed manual exit). The caller (currently `App.kt`, eventually issue #17's real
  *  nav wiring) decides what "leaving Guess the Character" means - today that's popping back to Home.
@@ -86,6 +96,15 @@ fun GuessCharacterScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     var showExitConfirmation by rememberSaveable { mutableStateOf(false) }
+
+    // Mirrors RoundContent's onExitRequested logic (streak > 0 => confirm, otherwise let the
+    // system back action proceed normally) so the hardware/gesture back button can't bypass the
+    // same confirmation the in-screen exit button enforces. Only enabled during an active round
+    // with progress at risk - see this file's kdoc.
+    val currentRoundStreak = (uiState as? GuessCharacterUiState.Round)?.streak ?: 0
+    PlatformBackHandler(enabled = currentRoundStreak > 0) {
+        showExitConfirmation = true
+    }
 
     Scaffold(modifier = modifier.fillMaxSize()) { innerPadding ->
         Box(modifier = Modifier.fillMaxSize().padding(innerPadding)) {
