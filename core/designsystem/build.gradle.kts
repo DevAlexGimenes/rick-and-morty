@@ -31,6 +31,24 @@ kotlin {
             implementation(compose.material3)
             implementation(compose.ui)
             implementation(compose.components.resources)
+            implementation(libs.coil.compose)
+            implementation(libs.coil.network.ktor)
+            implementation(libs.okio)
+        }
+        androidMain.dependencies {
+            implementation(libs.ktor.client.okhttp)
+        }
+        if (HostManager.hostIsMac) {
+            iosMain.dependencies {
+                implementation(libs.ktor.client.darwin)
+            }
+        }
+        val androidInstrumentedTest by getting {
+            dependencies {
+                implementation(kotlin("test"))
+                implementation(libs.androidx.junit)
+                implementation(libs.androidx.espresso.core)
+            }
         }
     }
 }
@@ -44,6 +62,7 @@ android {
     }
     defaultConfig {
         minSdk = 24
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
