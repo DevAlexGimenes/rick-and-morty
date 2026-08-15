@@ -58,7 +58,7 @@ fun RickAndMortyTheme(
     ) {
         MaterialTheme(
             colorScheme = colorScheme,
-            typography = RickAndMortyTypography,
+            typography = rickAndMortyTypography(),
             shapes = RickAndMortyShapes,
             content = content
         )
