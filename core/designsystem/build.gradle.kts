@@ -44,6 +44,9 @@ kotlin {
                 implementation(libs.ktor.client.darwin)
             }
         }
+        commonTest.dependencies {
+            implementation(kotlin("test"))
+        }
         val androidInstrumentedTest by getting {
             dependencies {
                 implementation(kotlin("test"))
