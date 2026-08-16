@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <!--
+      R9 (issue #45) - Android 12+ SplashScreen theme, dark-theme override of values/themes.xml's
+      Theme.RickAndMorty.Starting. This is the only dark-mode theme override the app currently
+      needs: Theme.RickAndMorty itself has no dark variant because the rest of the app's
+      light/dark switching is handled entirely by Compose's RickAndMortyTheme
+      (isSystemInDarkTheme()), not XML theme resources - the splash screen is a special case
+      because it's a system-drawn window that exists before any Compose code runs.
+
+      windowSplashScreenBackground: BackgroundDark (`#FF14152B`) from core:designsystem's
+      Color.kt (R1, issue #37) - must exactly match what RickAndMortyTheme renders as Home's
+      background in dark mode, or the splash-to-Home handoff shows a visible color flash.
+
+      windowSplashScreenAnimatedIcon: see drawable/ic_splash_icon_dark.xml's kdoc for the exact
+      color rationale (PrimaryDark, `#FF8FDB4A`).
+    -->
+    <style name="Theme.RickAndMorty.Starting" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">#FF14152B</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/ic_splash_icon_dark</item>
+        <item name="postSplashScreenTheme">@style/Theme.RickAndMorty</item>
+    </style>
+</resources>

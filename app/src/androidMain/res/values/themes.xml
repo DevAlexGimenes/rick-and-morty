@@ -2,4 +2,28 @@
 <resources>
 
     <style name="Theme.RickAndMorty" parent="android:Theme.Material.Light.NoActionBar" />
+
+    <!--
+      R9 (issue #45) - Android 12+ SplashScreen theme, light-theme variant (see values-night/
+      themes.xml for the dark-theme override). MainActivity's manifest-declared theme; the app
+      switches back to Theme.RickAndMorty programmatically after installSplashScreen() returns
+      control in onCreate() (Compose then renders the real, theme-aware RickAndMortyTheme).
+
+      windowSplashScreenBackground: BackgroundLight (`#FFF4F5FC`) from core:designsystem's
+      Color.kt (R1, issue #37) - must exactly match what RickAndMortyTheme renders as Home's
+      background in light mode, or the splash-to-Home handoff shows a visible color flash.
+
+      windowSplashScreenAnimatedIcon: see drawable/ic_splash_icon_light.xml's kdoc for the exact
+      color rationale (PrimaryLight, `#FF41841D`).
+
+      No windowSplashScreenIconBackgroundColor: PrimaryLight-on-BackgroundLight is legible enough
+      for a large graphical ring glyph (this isn't running text, so the project's stricter 4.5:1
+      text-contrast bar - see ColorContrastTest - doesn't govern it), so an icon backing plate
+      would be pure decoration with no legibility payoff here.
+    -->
+    <style name="Theme.RickAndMorty.Starting" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">#FFF4F5FC</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/ic_splash_icon_light</item>
+        <item name="postSplashScreenTheme">@style/Theme.RickAndMorty</item>
+    </style>
 </resources>
