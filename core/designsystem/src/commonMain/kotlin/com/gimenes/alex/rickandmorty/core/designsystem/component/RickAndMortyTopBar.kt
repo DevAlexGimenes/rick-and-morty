@@ -18,6 +18,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
@@ -83,6 +84,7 @@ fun RickAndMortyTopBar(
             onClick = onExitClick,
             modifier = Modifier
                 .size(MIN_TOUCH_TARGET)
+                .testTag(EXIT_BUTTON_TEST_TAG)
                 .semantics { contentDescription = exitContentDescription },
         ) {
             BackArrowGlyph(color = MaterialTheme.colorScheme.onBackground)
@@ -138,3 +140,9 @@ private val HAIRLINE_BORDER_WIDTH = 1.dp
 
 /** Hairline bottom border alpha, matching [ModeCard]'s `outline`-at-30%-alpha border treatment. */
 private const val HAIRLINE_BORDER_ALPHA = 0.3f
+
+/**
+ * Maestro E2E test hook (issue #58, Phase 1). [androidx.compose.ui.platform.testTag] is a
+ * testing-only semantics property - real accessibility services never read it.
+ */
+private const val EXIT_BUTTON_TEST_TAG = "top_bar_exit_button"

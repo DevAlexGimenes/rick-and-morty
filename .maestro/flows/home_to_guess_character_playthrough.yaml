@@ -1,0 +1,42 @@
+# P0 flow (issue #58, Phase 1): Home -> Guess the Character -> play rounds (tapping option 0 each
+# time) until a miss ends the run -> Run Ended -> Play Again -> back in a fresh Round.
+#
+# The correct answer's position is genuinely randomized per round from live API data (no
+# deterministic seed/DI hook exists yet - that's a separate ATLAS decision per SENTINEL's plan, out
+# of scope for Phase 1). Rather than fight that, this flow leans into it exactly as the issue
+# describes: keep tapping option 0 - whichever outcome happens (a short correct streak, then
+# eventually a miss, or a miss on the very first guess) is a valid exercise of the real gameplay
+# loop, and every guess locks the round (isLocked = true) so this can never double-tap into an
+# invalid state. `retry` (not a plain `repeat`) is required here because a plain `repeat` aborts the
+# whole flow on ANY failed step inside it - `retry` is the only Maestro construct that tolerates a
+# still-in-Round "Run Ended" assertion failing and simply tries again.
+appId: com.gimenes.alex.rickandmorty
+---
+- launchApp
+- tapOn: "Guess the Character"
+
+- retry:
+    # Expected value ~4 guesses to hit a miss at a uniform 25% correct-per-round chance; 12 is a
+    # generous bound well beyond that (P(12 correct in a row) is negligible).
+    maxRetries: 12
+    commands:
+      - tapOn:
+          id: "guess_answer_option_0"
+      - waitForAnimationToEnd:
+          timeout: 2000
+      - assertVisible:
+          text: "Run Ended"
+
+# Run Ended content is visible.
+- assertVisible:
+    text: "Run Ended"
+- assertVisible:
+    text: "Final Streak"
+
+- tapOn: "Play Again"
+
+# Back in a fresh Round.
+- assertVisible:
+    id: "guess_streak_counter"
+- assertVisible:
+    id: "guess_answer_option_0"

@@ -1,0 +1,3 @@
+appId: com.gimenes.alex.rickandmorty
+flows:
+  - "flows/*.yaml"

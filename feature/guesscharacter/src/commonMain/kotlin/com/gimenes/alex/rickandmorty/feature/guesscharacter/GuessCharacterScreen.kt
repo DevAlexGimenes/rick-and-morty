@@ -50,6 +50,7 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
@@ -434,6 +435,7 @@ private fun RoundContent(
                     state.options.forEachIndexed { index, option ->
                         AnswerOptionButton(
                             text = option.name,
+                            index = index,
                             optionState = answerOptionState(index, state),
                             enabled = !state.isLocked,
                             isJustLocked = state.isLocked && index == state.selectedOptionIndex,
@@ -622,6 +624,7 @@ private fun StreakCounter(streak: Int, reducedMotion: Boolean) {
                     scaleX = popScale
                     scaleY = popScale
                 }
+                .testTag(STREAK_COUNTER_TEST_TAG)
                 .semantics(mergeDescendants = true) {
                     liveRegion = LiveRegionMode.Polite
                     contentDescription = "Streak $streak"
@@ -693,6 +696,7 @@ private fun answerOptionState(index: Int, state: GuessCharacterUiState.Round): A
 @Composable
 private fun AnswerOptionButton(
     text: String,
+    index: Int,
     optionState: AnswerOptionState,
     enabled: Boolean,
     isJustLocked: Boolean,
@@ -766,7 +770,10 @@ private fun AnswerOptionButton(
             onClick = onClick,
             enabled = enabled,
             interactionSource = interactionSource,
-            modifier = Modifier.fillMaxWidth().heightIn(min = MIN_ANSWER_HEIGHT),
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(min = MIN_ANSWER_HEIGHT)
+                .testTag("$ANSWER_OPTION_TEST_TAG_PREFIX$index"),
             shape = RickAndMortyShapes.medium,
             color = containerColor,
             tonalElevation = tonalElevation,
@@ -1062,3 +1069,14 @@ private const val PRESS_GLOW_MAX_ALPHA = 0.35f
 
 /** Moment 5: corner radius the press glow bloom is drawn with, matching [RickAndMortyShapes.medium]. */
 private val ANSWER_GLOW_CORNER_RADIUS = 20.dp
+
+// ---------------------------------------------------------------------------------------------
+// Maestro E2E test hooks (issue #58, Phase 1). androidx.compose.ui.platform.testTag is a
+// testing-only semantics property - real accessibility services never read it - matching
+// com.gimenes.alex.rickandmorty.home.HERO_GLYPH_TEST_TAG's precedent.
+// ---------------------------------------------------------------------------------------------
+
+private const val ANSWER_OPTION_TEST_TAG_PREFIX = "guess_answer_option_"
+
+/** Lets a Maestro flow assert on the streak counter's current text (e.g. "Streak: 3"). */
+private const val STREAK_COUNTER_TEST_TAG = "guess_streak_counter"
