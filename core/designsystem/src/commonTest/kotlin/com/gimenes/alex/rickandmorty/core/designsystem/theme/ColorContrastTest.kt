@@ -92,6 +92,18 @@ class ColorContrastTest {
         assertPairPassesAa("dark accent/background (link-style CTA text)", AccentDark, BackgroundDark)
 
     @Test
+    fun darkHeroAccentTextOnBackgroundMeetsAa() =
+        // Dark mode reuses PrimaryDark directly (see ExtendedColors.heroAccentText kdoc) - this
+        // pins that it stays valid rather than only relying on the already-tested onPrimary/
+        // primary pairing, which is a different pairing (white-on-fill, not primary-as-text-on-
+        // background).
+        assertPairPassesAa(
+            "dark heroAccentText(=PrimaryDark)/background (R5 hero headline accent line)",
+            PrimaryDark,
+            BackgroundDark
+        )
+
+    @Test
     fun darkOnFeedbackCorrectOnFeedbackCorrectMeetsAa() =
         assertPairPassesAa(
             "dark onFeedbackCorrect/feedbackCorrect",
@@ -142,6 +154,17 @@ class ColorContrastTest {
     @Test
     fun lightAccentOnBackgroundMeetsAaForLinkText() =
         assertPairPassesAa("light accent/background (link-style CTA text)", AccentLight, BackgroundLight)
+
+    @Test
+    fun lightHeroAccentTextOnBackgroundMeetsAa() =
+        // See HeroAccentTextLight kdoc: PrimaryLight itself only reaches ~4.25:1 against
+        // BackgroundLight (fails AA) despite passing against pure white, hence the dedicated
+        // darker token for this specific text-on-background use (R5's hero headline accent line).
+        assertPairPassesAa(
+            "light heroAccentText/background (R5 hero headline accent line)",
+            HeroAccentTextLight,
+            BackgroundLight
+        )
 
     @Test
     fun lightOnFeedbackCorrectOnFeedbackCorrectMeetsAa() =

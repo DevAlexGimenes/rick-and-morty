@@ -113,3 +113,25 @@ val OnFeedbackCorrectLight = Color(0xFFFFFFFF)
 // Unchanged from pre-R1: already passes WCAG AA (~4.86:1 against white) - see ColorContrastTest.
 val FeedbackIncorrectLight = Color(0xFFC7452F)
 val OnFeedbackIncorrectLight = Color(0xFFFFFFFF)
+
+/**
+ * Contrast-driven deviation, introduced in R5 (issue #41 - Home hero treatment): Home's hero
+ * headline needs a `primary`-green accent line rendered directly as text fill on
+ * [BackgroundLight] (not a button/badge fill, so [PrimaryLight]'s own onPrimary/primary
+ * verification doesn't cover it, and per the `accent` token's scope constraint - see
+ * [AccentLight] kdoc - `accent` must not be used as running text fill either).
+ *
+ * Measured: [PrimaryLight] directly against [BackgroundLight] only reaches ~4.25:1, which fails
+ * the project's 4.5:1 AA bar (unlike [PrimaryLight] against pure white, where it was tuned to
+ * ~4.62:1 - [BackgroundLight] is a hair darker than pure white, which is enough to drop it below
+ * the threshold). Rather than darkening the shared [PrimaryLight] token itself (which would
+ * affect every button/border already tuned against it), this is a dedicated, same-hue/
+ * same-saturation, lower-lightness variant reserved for large `primary`-colored text rendered
+ * directly on [BackgroundLight] - same technique as every other deviation in this file. Reaches
+ * ~4.59:1 against [BackgroundLight] - see ColorContrastTest.
+ *
+ * Dark mode needs no equivalent: [PrimaryDark] against [BackgroundDark] already reaches ~10.6:1,
+ * far above the AA bar, so the hero headline's dark-mode accent line reuses [PrimaryDark]
+ * directly (see [ExtendedColors.heroAccentText]).
+ */
+val HeroAccentTextLight = Color(0xFF3E7E1C)

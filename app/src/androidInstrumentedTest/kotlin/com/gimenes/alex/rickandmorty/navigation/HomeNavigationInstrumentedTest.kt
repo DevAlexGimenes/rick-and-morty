@@ -96,7 +96,10 @@ class HomeNavigationInstrumentedTest {
         composeTestRule.onNodeWithText("Trivia Quiz").performClick()
         composeTestRule.onNodeWithText("Exit").performClick()
 
-        composeTestRule.onNodeWithText("Pick a game mode").assertExists()
+        // "Pick a game mode" was R5's (issue #41) pre-hero-redesign subtitle and no longer exists;
+        // "Rick and Morty" is the hero headline's plain line, present exactly once on Home both
+        // before and after the redesign, so it remains a reliable "we're back on Home" marker.
+        composeTestRule.onNodeWithText("Rick and Morty").assertExists()
     }
 
     @Test
@@ -106,7 +109,7 @@ class HomeNavigationInstrumentedTest {
         composeTestRule.onNodeWithText("Guess the Character").performClick()
         composeTestRule.onNodeWithText("Exit").performClick()
 
-        composeTestRule.onNodeWithText("Pick a game mode").assertExists()
+        composeTestRule.onNodeWithText("Rick and Morty").assertExists()
     }
 }
 
