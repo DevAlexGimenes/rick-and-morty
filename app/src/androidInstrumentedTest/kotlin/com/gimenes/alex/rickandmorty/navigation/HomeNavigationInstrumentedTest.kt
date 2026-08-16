@@ -18,20 +18,27 @@ import org.junit.Test
 /**
  * Covers issue #17's "basic navigation test" acceptance criterion for the graph wired in
  * `App.kt`: Home's two [com.gimenes.alex.rickandmorty.core.designsystem.component.ModeCard]s
- * navigate to [Routes.QUIZ] / [Routes.GUESS_CHARACTER], and each destination's exit path pops
- * the back stack to [Routes.HOME] (`navController.popBackStack(Routes.HOME, inclusive = false)`,
+ * navigate to [Routes.Quiz] / [Routes.GuessCharacter], and each destination's exit path pops the
+ * back stack to [Routes.Home] (`navController.popBackStack(Routes.Home, inclusive = false)`,
  * exactly as `App.kt` wires it).
+ *
+ * Updated for issue #40's type-safe routes migration (`Routes` is now a sealed interface of
+ * `@Serializable data object`s, navigated with `composable<T>` / `navController.navigate(T)`
+ * rather than string route constants) - the navigation behavior under test is unchanged, only the
+ * route *type* is. Per-destination transitions (also added in #40) aren't exercised here; that's
+ * a visual concern, not a navigation-graph correctness one, and this test deliberately stays a
+ * fast, non-visual graph test - see below.
  *
  * This deliberately does **not** compose the real `QuizScreen`/`GuessCharacterScreen`: both pull
  * a `koinViewModel()` backed by live network/database Koin modules (see feature:quiz's
  * `QuizModule` / feature:guesscharacter's `GuessCharacterModule`), which would make this an
  * unpredictable, network-dependent test rather than the basic navigation-graph test this issue
  * asks for - and each feature module already owns testing its own internal screen behavior.
- * Instead, this builds a [NavHost] with the exact same [Routes] constants and the exact same
- * exit wiring as `App.kt`, standing in a minimal fake composable at the Quiz/GuessCharacter
+ * Instead, this builds a [NavHost] with the exact same [Routes] types and the exact same exit
+ * wiring as `App.kt`, standing in a minimal fake composable at the Quiz/GuessCharacter
  * destinations (a label to identify the destination + a button that invokes the same
  * `popBackStack` exit callback `App.kt` wires to each screen's real `onExit`). That's enough to
- * prove the navigation graph itself - route names, forward navigation from Home, and the
+ * prove the navigation graph itself - route wiring, forward navigation from Home, and the
  * back-stack-popping exit behavior - is wired correctly.
  */
 class HomeNavigationInstrumentedTest {
@@ -42,23 +49,23 @@ class HomeNavigationInstrumentedTest {
     @Composable
     private fun TestNavGraph() {
         val navController = rememberNavController()
-        NavHost(navController = navController, startDestination = Routes.HOME) {
-            composable(Routes.HOME) {
+        NavHost(navController = navController, startDestination = Routes.Home) {
+            composable<Routes.Home> {
                 HomeScreen(
-                    onQuizClick = { navController.navigate(Routes.QUIZ) },
-                    onGuessCharacterClick = { navController.navigate(Routes.GUESS_CHARACTER) },
+                    onQuizClick = { navController.navigate(Routes.Quiz) },
+                    onGuessCharacterClick = { navController.navigate(Routes.GuessCharacter) },
                 )
             }
-            composable(Routes.QUIZ) {
+            composable<Routes.Quiz> {
                 FakeExitableDestination(
                     label = "Quiz Destination",
-                    onExit = { navController.popBackStack(Routes.HOME, inclusive = false) },
+                    onExit = { navController.popBackStack(Routes.Home, inclusive = false) },
                 )
             }
-            composable(Routes.GUESS_CHARACTER) {
+            composable<Routes.GuessCharacter> {
                 FakeExitableDestination(
                     label = "Guess Character Destination",
-                    onExit = { navController.popBackStack(Routes.HOME, inclusive = false) },
+                    onExit = { navController.popBackStack(Routes.Home, inclusive = false) },
                 )
             }
         }
