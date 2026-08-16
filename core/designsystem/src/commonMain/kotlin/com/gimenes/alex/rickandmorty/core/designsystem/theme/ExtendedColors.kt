@@ -9,6 +9,10 @@ import androidx.compose.ui.graphics.Color
  *
  * Feedback colors are intentionally separate from primary/secondary/tertiary so quiz feedback
  * never gets confused with "on-brand" styling.
+ *
+ * [accent] scope constraint (issue #37): reserved for glow effects, gradient stops,
+ * badges/pills, and link-style CTA text ONLY - never a large flat fill or body text color. See
+ * [AccentDark]/[AccentLight] kdoc for the full rationale.
  */
 data class ExtendedColors(
     val accent: Color,
