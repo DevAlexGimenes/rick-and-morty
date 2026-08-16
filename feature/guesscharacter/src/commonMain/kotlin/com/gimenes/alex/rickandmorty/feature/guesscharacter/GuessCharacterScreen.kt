@@ -1,6 +1,7 @@
 package com.gimenes.alex.rickandmorty.feature.guesscharacter
 
 import androidx.compose.animation.Crossfade
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.focusable
@@ -53,6 +54,7 @@ import com.gimenes.alex.rickandmorty.core.designsystem.backhandler.PlatformBackH
 import com.gimenes.alex.rickandmorty.core.designsystem.component.CachedCharacterImage
 import com.gimenes.alex.rickandmorty.core.designsystem.component.PrimaryGradientButton
 import com.gimenes.alex.rickandmorty.core.designsystem.component.SecondaryOutlinedButton
+import com.gimenes.alex.rickandmorty.core.designsystem.motion.rememberReducedMotionEnabled
 import com.gimenes.alex.rickandmorty.core.designsystem.theme.RickAndMortyExtendedTheme
 import com.gimenes.alex.rickandmorty.core.designsystem.theme.RickAndMortyShapes
 import org.koin.compose.viewmodel.koinViewModel
@@ -343,17 +345,26 @@ private fun RoundContent(
                 .semantics { heading() },
         )
 
-        // TODO(reduced-motion): this Crossfade should use a near-zero duration when the platform
-        //  signals a reduced-motion preference. Compose Multiplatform doesn't yet expose a uniform
-        //  cross-platform reduced-motion API the way Android's Settings.Global.ANIMATOR_DURATION_SCALE
-        //  does - see GuessCharacterViewModel's kdoc. The underlying round-advance *timing* (the
-        //  actual pacing pause) is unaffected either way; only this visual flourish is gated here.
+        // Resolved via issue #40's PlatformReducedMotion (see its kdoc): this Crossfade uses a
+        // near-zero duration when the platform signals a reduced-motion preference, previously
+        // left as a TODO here because Compose Multiplatform didn't yet expose a uniform
+        // cross-platform reduced-motion API - a real one turned out to exist on Android
+        // (Settings.Global.ANIMATOR_DURATION_SCALE); iOS remains a documented no-op for now, see
+        // PlatformReducedMotion's iOS actual. The underlying round-advance *timing* (the actual
+        // pacing pause, see GuessCharacterViewModel's kdoc) is unaffected either way; only this
+        // visual flourish is gated here.
         //
         // Keyed by target.id (round identity), not the full `state`, so only an actual round
         // change (auto-advance after a correct guess) triggers the fade - locking in an answer or
         // the streak ticking up shouldn't itself replay the transition. The content lambda closes
         // over the outer `state` directly so it always reflects the latest selection/lock/streak.
-        Crossfade(targetState = state.target.id, label = "guess-character-round") {
+        val reducedMotion by rememberReducedMotionEnabled()
+        val crossfadeDurationMs = if (reducedMotion) 0 else CROSSFADE_DEFAULT_DURATION_MS
+        Crossfade(
+            targetState = state.target.id,
+            animationSpec = tween(crossfadeDurationMs),
+            label = "guess-character-round",
+        ) {
             Column(verticalArrangement = Arrangement.spacedBy(spacing.md)) {
                 CachedCharacterImage(
                     imageUrl = state.target.image,
@@ -716,6 +727,14 @@ private fun NewBestCallout(bestStreakEver: Int) {
         }
     }
 }
+
+/**
+ * Matches [Crossfade]'s own default `animationSpec` duration (`tween()`'s default), kept as an
+ * explicit local constant (rather than relying on `androidx.compose.animation.core`'s internal
+ * default) so it can be swapped to `0` under reduced motion - see this file's round-transition
+ * `Crossfade`.
+ */
+private const val CROSSFADE_DEFAULT_DURATION_MS = 300
 
 /** Minimum interactive touch target per the a11y spec (≥48dp). */
 private val MIN_TOUCH_TARGET = 48.dp

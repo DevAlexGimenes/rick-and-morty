@@ -39,11 +39,11 @@ import kotlinx.coroutines.launch
  * ### Reduced motion
  * This ViewModel's delays are the actual pacing/timing logic, not a visual animation - they still
  * run under a reduced-motion preference exactly as described above (the pause itself is part of the
- * game feel, not just an animation flourish). What *should* additionally shorten/skip under
- * reduced-motion is the round-to-round transition *animation* in [GuessCharacterScreen] - Compose
- * Multiplatform has no uniform cross-platform reduced-motion signal today (unlike Android's
- * `Settings.Global.ANIMATOR_DURATION_SCALE`), so that piece is left as a documented gap rather than
- * faked; see the `TODO` on [GuessCharacterScreen]'s round transition.
+ * game feel, not just an animation flourish). What additionally shortens/skips under reduced-motion
+ * is the round-to-round transition *animation* in [GuessCharacterScreen] - as of issue #40, that's
+ * driven by [com.gimenes.alex.rickandmorty.core.designsystem.motion.rememberReducedMotionEnabled],
+ * which reads Android's `Settings.Global.ANIMATOR_DURATION_SCALE` (iOS remains a documented no-op
+ * gap for now - see that function's kdoc and its iOS actual).
  */
 class GuessCharacterViewModel(
     private val getCharacterPoolUseCase: GetCharacterPoolUseCase,
