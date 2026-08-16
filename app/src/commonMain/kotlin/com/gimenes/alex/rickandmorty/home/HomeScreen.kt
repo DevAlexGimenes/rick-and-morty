@@ -9,8 +9,15 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
+import com.gimenes.alex.rickandmorty.core.designsystem.component.CharacterSilhouetteGlyph
 import com.gimenes.alex.rickandmorty.core.designsystem.component.ModeCard
+import com.gimenes.alex.rickandmorty.core.designsystem.component.PortalRingGlyph
+import com.gimenes.alex.rickandmorty.core.designsystem.component.QuestionMarkGlyph
 import com.gimenes.alex.rickandmorty.core.designsystem.theme.RickAndMortyExtendedTheme
+
+/** Header glyph diameter for [ModeCard]'s compact header row per LUMA's R3 spec (~40-48dp). */
+private val MODE_CARD_GLYPH_SIZE = 44.dp
 
 /**
  * Home: two tappable mode cards (Trivia Quiz, Guess the Character) per LUMA's spec. No
@@ -41,12 +48,24 @@ fun HomeScreen(
             ModeCard(
                 title = "Trivia Quiz",
                 description = "Answer questions about the multiverse.",
-                onClick = onQuizClick
+                onClick = onQuizClick,
+                icon = {
+                    PortalRingGlyph(
+                        size = MODE_CARD_GLYPH_SIZE,
+                        content = { QuestionMarkGlyph() },
+                    )
+                }
             )
             ModeCard(
                 title = "Guess the Character",
                 description = "Identify characters from the show.",
-                onClick = onGuessCharacterClick
+                onClick = onGuessCharacterClick,
+                icon = {
+                    PortalRingGlyph(
+                        size = MODE_CARD_GLYPH_SIZE,
+                        content = { CharacterSilhouetteGlyph() },
+                    )
+                }
             )
         }
     }
