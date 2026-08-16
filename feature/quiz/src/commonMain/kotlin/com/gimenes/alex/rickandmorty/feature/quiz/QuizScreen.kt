@@ -37,7 +37,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -65,7 +68,9 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.layout.PaddingValues
+import com.gimenes.alex.rickandmorty.core.designsystem.component.ConfirmExitDialog
 import com.gimenes.alex.rickandmorty.core.designsystem.component.PrimaryGradientButton
+import com.gimenes.alex.rickandmorty.core.designsystem.component.RickAndMortyTopBar
 import com.gimenes.alex.rickandmorty.core.designsystem.component.SecondaryOutlinedButton
 import com.gimenes.alex.rickandmorty.core.designsystem.motion.reducedMotionAwareSpec
 import com.gimenes.alex.rickandmorty.core.designsystem.motion.rememberPressAnimatedFloat
@@ -93,14 +98,29 @@ fun QuizScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
+    // Screen-local, not QuizViewModel state - the exact same rationale as
+    // GuessCharacterScreen's own `showExitConfirmation` (see its kdoc): a transient "are you
+    // sure" prompt layered over whatever QuizUiState.Question is currently showing, not a new
+    // QuizUiState variant. rememberSaveable so it survives a configuration change.
+    var showExitConfirmation by rememberSaveable { mutableStateOf(false) }
+
     Scaffold(modifier = modifier.fillMaxSize()) { innerPadding ->
-        Box(modifier = Modifier.fillMaxSize().padding(innerPadding)) {
+        Column(modifier = Modifier.fillMaxSize().padding(innerPadding)) {
             when (val state = uiState) {
-                is QuizUiState.CategorySelect -> CategorySelectContent(
-                    state = state,
-                    onSelectCategory = viewModel::selectCategory,
-                    onStartQuiz = { state.selectedCategory?.let(viewModel::startQuiz) },
-                )
+                is QuizUiState.CategorySelect -> {
+                    RickAndMortyTopBar(
+                        title = "Trivia Quiz",
+                        onExitClick = onExit,
+                        exitContentDescription = "Exit Trivia Quiz",
+                    )
+                    Box(modifier = Modifier.weight(1f)) {
+                        CategorySelectContent(
+                            state = state,
+                            onSelectCategory = viewModel::selectCategory,
+                            onStartQuiz = { state.selectedCategory?.let(viewModel::startQuiz) },
+                        )
+                    }
+                }
 
                 QuizUiState.Loading -> LoadingContent()
 
@@ -111,19 +131,52 @@ fun QuizScreen(
 
                 QuizUiState.Empty -> EmptyContent(onBack = viewModel::backToCategorySelect)
 
-                is QuizUiState.Question -> QuestionContent(
-                    state = state,
-                    onSelectAnswer = viewModel::selectAnswer,
-                    onNext = viewModel::nextQuestion,
-                )
+                is QuizUiState.Question -> {
+                    RickAndMortyTopBar(
+                        title = "Trivia Quiz",
+                        onExitClick = { showExitConfirmation = true },
+                        exitContentDescription = "Exit Trivia Quiz",
+                    )
+                    Box(modifier = Modifier.weight(1f)) {
+                        QuestionContent(
+                            state = state,
+                            onSelectAnswer = viewModel::selectAnswer,
+                            onNext = viewModel::nextQuestion,
+                        )
+                    }
+                }
 
-                is QuizUiState.Results -> ResultsContent(
-                    state = state,
-                    onReplay = viewModel::replay,
-                    onExit = onExit,
-                )
+                is QuizUiState.Results -> {
+                    RickAndMortyTopBar(
+                        title = "Results",
+                        onExitClick = onExit,
+                        exitContentDescription = "Exit Trivia Quiz",
+                    )
+                    Box(modifier = Modifier.weight(1f)) {
+                        ResultsContent(
+                            state = state,
+                            onReplay = viewModel::replay,
+                            onExit = onExit,
+                        )
+                    }
+                }
             }
         }
+    }
+
+    if (showExitConfirmation) {
+        ConfirmExitDialog(
+            title = "Leave Quiz?",
+            message = "Your progress won't be saved. Rick wouldn't judge you for bailing, " +
+                "but he also won't remember you tried.",
+            confirmLabel = "Leave Quiz",
+            dismissLabel = "Keep Playing",
+            onConfirm = {
+                showExitConfirmation = false
+                onExit()
+            },
+            onDismiss = { showExitConfirmation = false },
+        )
     }
 }
 
@@ -866,13 +919,6 @@ private fun ResultsContent(
         contentPadding = PaddingValues(spacing.lg),
         verticalArrangement = Arrangement.spacedBy(spacing.md),
     ) {
-        item {
-            Text(
-                text = "Results",
-                style = MaterialTheme.typography.headlineSmall,
-                modifier = Modifier.semantics { heading() },
-            )
-        }
         item {
             Text(
                 text = "${state.score} / ${state.total}",

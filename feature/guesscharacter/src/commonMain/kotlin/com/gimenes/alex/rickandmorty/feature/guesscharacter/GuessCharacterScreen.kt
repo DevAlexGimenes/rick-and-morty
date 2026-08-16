@@ -20,9 +20,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
@@ -62,7 +60,9 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.gimenes.alex.rickandmorty.core.designsystem.backhandler.PlatformBackHandler
 import com.gimenes.alex.rickandmorty.core.designsystem.component.CachedCharacterImage
+import com.gimenes.alex.rickandmorty.core.designsystem.component.ConfirmExitDialog
 import com.gimenes.alex.rickandmorty.core.designsystem.component.PrimaryGradientButton
+import com.gimenes.alex.rickandmorty.core.designsystem.component.RickAndMortyTopBar
 import com.gimenes.alex.rickandmorty.core.designsystem.component.SecondaryOutlinedButton
 import com.gimenes.alex.rickandmorty.core.designsystem.motion.reducedMotionAwareSpec
 import com.gimenes.alex.rickandmorty.core.designsystem.motion.rememberKeyedValuePop
@@ -92,13 +92,15 @@ import org.koin.compose.viewmodel.koinViewModel
  * (not plain `remember`) so the dialog survives a configuration change without needing ViewModel
  * involvement.
  *
- * ### The system/hardware back gesture is intercepted too, not just the in-screen exit button
- * The in-screen exit [IconButton] (in [RoundContent]) was the only way to trigger the exit
- * confirmation until issue #17: the platform's own back button/gesture went straight to
- * `navigation-compose`'s default behavior (popping the back stack), silently discarding an
- * active streak without ever showing [ExitConfirmationDialog]. [PlatformBackHandler] below closes
- * that gap on Android (see its kdoc for why this needs an expect/actual rather than being plain
- * common code, and why iOS is a documented no-op).
+ * ### The system/hardware back gesture is intercepted too, not just the top bar's exit arrow
+ * The exit arrow (in the shared [com.gimenes.alex.rickandmorty.core.designsystem.component.RickAndMortyTopBar]
+ * above [RoundContent], issue #55 - previously an in-screen exit `IconButton` inside
+ * [RoundContent] itself) was the only way to trigger the exit confirmation until issue #17: the
+ * platform's own back button/gesture went straight to `navigation-compose`'s default behavior
+ * (popping the back stack), silently discarding an active streak without ever showing the
+ * confirmation dialog. [PlatformBackHandler] below closes that gap on Android (see its kdoc for
+ * why this needs an expect/actual rather than being plain common code, and why iOS is a
+ * documented no-op).
  *
 
  * @param onExit invoked when the player leaves the flow (Run Ended's "Home" CTA, or a confirmed/
@@ -124,7 +126,7 @@ fun GuessCharacterScreen(
     }
 
     Scaffold(modifier = modifier.fillMaxSize()) { innerPadding ->
-        Box(modifier = Modifier.fillMaxSize().padding(innerPadding)) {
+        Column(modifier = Modifier.fillMaxSize().padding(innerPadding)) {
             when (val state = uiState) {
                 GuessCharacterUiState.Loading -> LoadingContent()
 
@@ -135,28 +137,59 @@ fun GuessCharacterScreen(
 
                 GuessCharacterUiState.Empty -> EmptyContent(onExit = onExit)
 
-                is GuessCharacterUiState.Round -> RoundContent(
-                    state = state,
-                    onSelectAnswer = viewModel::selectAnswer,
-                    onExitRequested = {
+                is GuessCharacterUiState.Round -> {
+                    // Single definition of the streak-check, reused as-is by the top bar's exit
+                    // arrow below - not re-derived per call site. Mirrors (but is distinct from)
+                    // PlatformBackHandler's own enabled-gate above; see this file's kdoc for why
+                    // that's a documented mirror relationship, not duplicated logic.
+                    val onExitRequested: () -> Unit = {
                         // Per the UX spec: no active progress means nothing to confirm away.
                         if (state.streak > 0) showExitConfirmation = true else onExit()
-                    },
-                )
+                    }
+                    RickAndMortyTopBar(
+                        title = "Guess the Character",
+                        onExitClick = onExitRequested,
+                        exitContentDescription = "Exit Guess the Character",
+                        // RoundContent's own heading already doubles as this round's
+                        // accessibility refocus target (see its kdoc) - suppressing the top
+                        // bar's heading semantics here avoids two headings announcing the exact
+                        // same static "Guess the Character" text back to back.
+                        isTitleHeading = false,
+                    )
+                    Box(modifier = Modifier.weight(1f)) {
+                        RoundContent(
+                            state = state,
+                            onSelectAnswer = viewModel::selectAnswer,
+                        )
+                    }
+                }
 
-                is GuessCharacterUiState.RunEnded -> RunEndedContent(
-                    state = state,
-                    onPlayAgain = viewModel::playAgain,
-                    onExit = onExit,
-                )
+                is GuessCharacterUiState.RunEnded -> {
+                    RickAndMortyTopBar(
+                        title = "Run Ended",
+                        onExitClick = onExit,
+                        exitContentDescription = "Exit Guess the Character",
+                    )
+                    Box(modifier = Modifier.weight(1f)) {
+                        RunEndedContent(
+                            state = state,
+                            onPlayAgain = viewModel::playAgain,
+                            onExit = onExit,
+                        )
+                    }
+                }
             }
         }
     }
 
     if (showExitConfirmation) {
         val streakAtRisk = (uiState as? GuessCharacterUiState.Round)?.streak ?: 0
-        ExitConfirmationDialog(
-            streak = streakAtRisk,
+        ConfirmExitDialog(
+            title = "End this run?",
+            message = "Your streak of $streakAtRisk will be recorded - nothing is lost by " +
+                "leaving now, but you'll start fresh next time. End this run?",
+            confirmLabel = "End Run",
+            dismissLabel = "Keep Playing",
             onConfirm = {
                 showExitConfirmation = false
                 viewModel.endRunManually()
@@ -164,30 +197,6 @@ fun GuessCharacterScreen(
             onDismiss = { showExitConfirmation = false },
         )
     }
-}
-
-@Composable
-private fun ExitConfirmationDialog(
-    streak: Int,
-    onConfirm: () -> Unit,
-    onDismiss: () -> Unit,
-) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("End this run?") },
-        text = {
-            Text(
-                "Your streak of $streak will be recorded - nothing is lost by leaving now, " +
-                    "but you'll start fresh next time. End this run?",
-            )
-        },
-        confirmButton = {
-            TextButton(onClick = onConfirm) { Text("End Run") }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) { Text("Keep Playing") }
-        },
-    )
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -316,7 +325,6 @@ private fun GlitchedPortalIcon() {
 private fun RoundContent(
     state: GuessCharacterUiState.Round,
     onSelectAnswer: (Int) -> Unit,
-    onExitRequested: () -> Unit,
 ) {
     val spacing = RickAndMortyExtendedTheme.spacing
     val extendedColors = RickAndMortyExtendedTheme.extendedColors
@@ -345,14 +353,10 @@ private fun RoundContent(
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween,
+            horizontalArrangement = Arrangement.End,
         ) {
-            IconButton(
-                onClick = onExitRequested,
-                modifier = Modifier.size(MIN_TOUCH_TARGET),
-            ) {
-                ExitGlyph(color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
+            // The exit affordance now lives in the shared top bar above (issue #55) - this row
+            // only carries the streak counter, right-aligned as before.
             StreakCounter(streak = state.streak, reducedMotion = reducedMotion)
         }
 
@@ -657,27 +661,6 @@ private fun StreakFlameIcon(color: Color, size: Dp = 22.dp) {
     }
 }
 
-@Composable
-private fun ExitGlyph(color: Color, size: Dp = 20.dp) {
-    Canvas(modifier = Modifier.size(size)) {
-        val strokeWidth = this.size.minDimension * 0.14f
-        drawLine(
-            color = color,
-            start = Offset(this.size.width * 0.15f, this.size.height * 0.15f),
-            end = Offset(this.size.width * 0.85f, this.size.height * 0.85f),
-            strokeWidth = strokeWidth,
-            cap = StrokeCap.Round,
-        )
-        drawLine(
-            color = color,
-            start = Offset(this.size.width * 0.85f, this.size.height * 0.15f),
-            end = Offset(this.size.width * 0.15f, this.size.height * 0.85f),
-            strokeWidth = strokeWidth,
-            cap = StrokeCap.Round,
-        )
-    }
-}
-
 private enum class AnswerOptionState { NEUTRAL, CORRECT, INCORRECT }
 
 private fun answerOptionState(index: Int, state: GuessCharacterUiState.Round): AnswerOptionState {
@@ -936,11 +919,6 @@ private fun RunEndedContent(
             .padding(spacing.lg),
         verticalArrangement = Arrangement.spacedBy(spacing.md),
     ) {
-        Text(
-            text = "Run Ended",
-            style = MaterialTheme.typography.headlineSmall,
-            modifier = Modifier.semantics { heading() },
-        )
         Text(
             text = "${state.finalStreak}",
             style = MaterialTheme.typography.displayLarge,
