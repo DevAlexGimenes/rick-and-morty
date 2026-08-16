@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Adaptive icon monochrome layer (R8, issue #44) - Android 13+ themed-icon ("Material You")
+  support. Same ring silhouette/geometry as ic_launcher_foreground.xml, but as a single shape
+  with no color intent of its own: the system extracts this drawable's alpha/shape and recolors
+  it to match the user's wallpaper-derived theme, so the fill color below is intentionally just
+  an opaque placeholder (convention: opaque black) rather than a brand color. Omitting this
+  <monochrome> layer would leave the icon falling back to an unstyled default on Android 13+
+  home screens when themed icons are enabled, so this file is required, not optional polish.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#FF000000"
+        android:strokeWidth="8"
+        android:strokeLineCap="round"
+        android:pathData="M54,28 A26,26 0 1 1 54,80 A26,26 0 1 1 54,28 Z" />
+</vector>

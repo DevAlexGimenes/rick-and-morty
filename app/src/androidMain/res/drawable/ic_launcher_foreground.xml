@@ -1,30 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Adaptive icon foreground layer (R8, issue #44).
+
+  Simplified static translation of the "portal ring" glyph concept from
+  core/designsystem/.../component/PortalRingGlyph.kt (R3, issue #39) into a launcher-icon-safe
+  vector drawable - NOT a reuse of that Compose component itself, since launcher icons are
+  rasterized/masked XML resources, not runtime Compose. Same visual language (a bold ring plus a
+  lighter highlight arc suggesting glow/depth), reduced to exactly two tones as required for a
+  legible small-scale icon:
+    - base ring:      PrimaryDark  (#FF8FDB4A) - the app's brand portal-swirl green
+    - highlight arc:  AccentDark   (#FF3DFF7A) - the portal-glow accent token, used here for
+                       exactly the "glow" purpose its scope constraint reserves it for
+
+  Geometry: a closed circular ring (torus) centered at (54,54) with radius 26 and 8dp stroke
+  width, so its outer edge sits at radius 30 - inside the 66dp safe zone's radius-33 boundary
+  (108dp canvas, safe zone = inner 66dp), giving a 3dp margin so the glyph is never clipped by
+  circle/squircle/square adaptive-icon masks. The highlight arc traces the top of the same ring
+  (from -160deg to -20deg, i.e. through the 12 o'clock point) at a thinner 3.5dp stroke, reading
+  as a light source from above.
+-->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:aapt="http://schemas.android.com/aapt"
     android:width="108dp"
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
-    <path android:pathData="M31,63.928c0,0 6.4,-11 12.1,-13.1c7.2,-2.6 26,-1.4 26,-1.4l38.1,38.1L107,108.928l-32,-1L31,63.928z">
-        <aapt:attr name="android:fillColor">
-            <gradient
-                android:endX="85.84757"
-                android:endY="92.4963"
-                android:startX="42.9492"
-                android:startY="49.59793"
-                android:type="linear">
-                <item
-                    android:color="#44000000"
-                    android:offset="0.0" />
-                <item
-                    android:color="#00000000"
-                    android:offset="1.0" />
-            </gradient>
-        </aapt:attr>
-    </path>
+    <!-- Base ring / torus. -->
     <path
-        android:fillColor="#FFFFFF"
-        android:fillType="nonZero"
-        android:pathData="M65.3,45.828l3.8,-6.6c0.2,-0.4 0.1,-0.9 -0.3,-1.1c-0.4,-0.2 -0.9,-0.1 -1.1,0.3l-3.9,6.7c-6.3,-2.8 -13.4,-2.8 -19.7,0l-3.9,-6.7c-0.2,-0.4 -0.7,-0.5 -1.1,-0.3C38.8,38.328 38.7,38.828 38.9,39.228l3.8,6.6C36.2,49.428 31.7,56.028 31,63.928h46C76.3,56.028 71.8,49.428 65.3,45.828zM43.4,57.328c-0.8,0 -1.5,-0.5 -1.8,-1.2c-0.3,-0.7 -0.1,-1.5 0.4,-2.1c0.5,-0.5 1.4,-0.7 2.1,-0.4c0.7,0.3 1.2,1 1.2,1.8C45.3,56.528 44.5,57.328 43.4,57.328L43.4,57.328zM64.6,57.328c-0.8,0 -1.5,-0.5 -1.8,-1.2s-0.1,-1.5 0.4,-2.1c0.5,-0.5 1.4,-0.7 2.1,-0.4c0.7,0.3 1.2,1 1.2,1.8C66.5,56.528 65.6,57.328 64.6,57.328L64.6,57.328z"
-        android:strokeWidth="1"
-        android:strokeColor="#00000000" />
+        android:fillColor="#00000000"
+        android:strokeColor="#FF8FDB4A"
+        android:strokeWidth="8"
+        android:strokeLineCap="round"
+        android:pathData="M54,28 A26,26 0 1 1 54,80 A26,26 0 1 1 54,28 Z" />
+    <!-- Highlight arc: lighter tone across the top of the ring, suggesting glow/depth. -->
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#FF3DFF7A"
+        android:strokeWidth="3.5"
+        android:strokeLineCap="round"
+        android:pathData="M29.57,45.11 A26,26 0 0 1 78.43,45.11" />
 </vector>
