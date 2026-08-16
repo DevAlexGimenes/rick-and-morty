@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  R9 (issue #45) - Android 12+ SplashScreen `windowSplashScreenAnimatedIcon` mark, dark-theme
+  variant. Reuses ic_launcher_monochrome.xml's exact ring-glyph geometry (per LUMA's proposal:
+  "not the full adaptive-icon composition, just the glyph itself" - no highlight arc), but unlike
+  the monochrome layer this renders as-is (splash icons are not OS-retinted the way the
+  adaptive-icon monochrome layer is), so it needs a real brand color rather than an opaque
+  placeholder.
+
+  Stroke color: PrimaryDark (`#FF8FDB4A`) from core:designsystem's Color.kt (R1, issue #37) -
+  same token used by ic_launcher_foreground.xml's base ring (R8, issue #44).
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#FF8FDB4A"
+        android:strokeWidth="8"
+        android:strokeLineCap="round"
+        android:pathData="M54,28 A26,26 0 1 1 54,80 A26,26 0 1 1 54,28 Z" />
+</vector>
