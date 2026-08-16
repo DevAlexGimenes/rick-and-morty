@@ -1,14 +1,21 @@
 package com.gimenes.alex.rickandmorty.feature.quiz
 
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
 import androidx.compose.foundation.focusable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -20,7 +27,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
@@ -33,14 +40,19 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
@@ -55,6 +67,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.layout.PaddingValues
 import com.gimenes.alex.rickandmorty.core.designsystem.component.PrimaryGradientButton
 import com.gimenes.alex.rickandmorty.core.designsystem.component.SecondaryOutlinedButton
+import com.gimenes.alex.rickandmorty.core.designsystem.motion.reducedMotionAwareSpec
+import com.gimenes.alex.rickandmorty.core.designsystem.motion.rememberPressAnimatedFloat
+import com.gimenes.alex.rickandmorty.core.designsystem.motion.rememberReducedMotionEnabled
+import com.gimenes.alex.rickandmorty.core.designsystem.motion.rememberScalePop
 import com.gimenes.alex.rickandmorty.core.designsystem.theme.PortalRingShape
 import com.gimenes.alex.rickandmorty.core.designsystem.theme.RickAndMortyExtendedTheme
 import com.gimenes.alex.rickandmorty.core.designsystem.theme.RickAndMortyShapes
@@ -378,6 +394,7 @@ private fun QuestionContent(
     val spacing = RickAndMortyExtendedTheme.spacing
     val extendedColors = RickAndMortyExtendedTheme.extendedColors
     val focusRequester = remember { FocusRequester() }
+    val reducedMotion by rememberReducedMotionEnabled()
 
     // A11y requirement: accessibility focus moves to the question heading whenever a new
     // question appears (including question 1), so screen-reader users get an explicit
@@ -393,54 +410,71 @@ private fun QuestionContent(
             .padding(spacing.lg),
         verticalArrangement = Arrangement.spacedBy(spacing.md),
     ) {
-        Text(
-            text = "Question ${state.questionNumber} of ${state.totalQuestions}",
-            style = MaterialTheme.typography.labelLarge,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        LinearProgressIndicator(
-            progress = { state.questionNumber / state.totalQuestions.toFloat() },
-            modifier = Modifier
-                .fillMaxWidth()
-                // Purely decorative alongside the "Question X of Y" text above - clear its
-                // semantics so it isn't announced as a second, redundant node.
-                .clearAndSetSemantics {},
-            color = MaterialTheme.colorScheme.primary,
-        )
-        Text(
-            text = state.questionText,
-            style = MaterialTheme.typography.headlineSmall,
-            modifier = Modifier
-                .focusRequester(focusRequester)
-                .focusable()
-                .semantics { heading() },
-        )
-
-        if (state.isLocked) {
-            val isCorrect = state.selectedOptionIndex == state.correctOptionIndex
-            Text(
-                text = if (isCorrect) {
-                    "Correct!"
-                } else {
-                    "Incorrect. The correct answer is ${state.options[state.correctOptionIndex]}."
-                },
-                style = MaterialTheme.typography.titleMedium,
-                color = if (isCorrect) extendedColors.feedbackCorrect else extendedColors.feedbackIncorrect,
-                // A11y requirement: feedback is announced via a live region rather than
-                // requiring the user to manually navigate to discover the result.
-                modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
-            )
-        }
-
-        Column(verticalArrangement = Arrangement.spacedBy(spacing.sm)) {
-            state.options.forEachIndexed { index, option ->
-                AnswerOptionButton(
-                    text = option,
-                    optionLetter = 'A' + index,
-                    optionState = answerOptionState(index, state),
-                    enabled = !state.isLocked,
-                    onClick = { onSelectAnswer(index) },
+        // R6 (issue #42) moment 1: the progress row/question/feedback/answers move inside a
+        // single elevated card instead of sitting freestanding on the page background. This is a
+        // static visual wrapper only - it doesn't own or intercept semantics, so the heading
+        // focus-requester below and the feedback live region are unaffected (verified manually,
+        // see this issue's report).
+        ElevatedCard(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RickAndMortyShapes.medium,
+        ) {
+            Column(
+                modifier = Modifier.padding(spacing.lg),
+                verticalArrangement = Arrangement.spacedBy(spacing.md),
+            ) {
+                Text(
+                    text = "Question ${state.questionNumber} of ${state.totalQuestions}",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
+                QuestionProgressBar(
+                    progress = state.questionNumber / state.totalQuestions.toFloat(),
+                    reducedMotion = reducedMotion,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        // Purely decorative alongside the "Question X of Y" text above - clear
+                        // its semantics so it isn't announced as a second, redundant node.
+                        .clearAndSetSemantics {},
+                )
+                Text(
+                    text = state.questionText,
+                    style = MaterialTheme.typography.headlineSmall,
+                    modifier = Modifier
+                        .focusRequester(focusRequester)
+                        .focusable()
+                        .semantics { heading() },
+                )
+
+                if (state.isLocked) {
+                    val isCorrect = state.selectedOptionIndex == state.correctOptionIndex
+                    Text(
+                        text = if (isCorrect) {
+                            "Correct!"
+                        } else {
+                            "Incorrect. The correct answer is ${state.options[state.correctOptionIndex]}."
+                        },
+                        style = MaterialTheme.typography.titleMedium,
+                        color = if (isCorrect) extendedColors.feedbackCorrect else extendedColors.feedbackIncorrect,
+                        // A11y requirement: feedback is announced via a live region rather than
+                        // requiring the user to manually navigate to discover the result.
+                        modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
+                    )
+                }
+
+                Column(verticalArrangement = Arrangement.spacedBy(spacing.sm)) {
+                    state.options.forEachIndexed { index, option ->
+                        AnswerOptionButton(
+                            text = option,
+                            optionLetter = 'A' + index,
+                            optionState = answerOptionState(index, state),
+                            enabled = !state.isLocked,
+                            isJustLocked = state.isLocked && index == state.selectedOptionIndex,
+                            reducedMotion = reducedMotion,
+                            onClick = { onSelectAnswer(index) },
+                        )
+                    }
+                }
             }
         }
 
@@ -451,6 +485,44 @@ private fun QuestionContent(
                 modifier = Modifier.fillMaxWidth(),
             )
         }
+    }
+}
+
+/**
+ * R6 (issue #42) moment 5: replaces the stock [androidx.compose.material3.LinearProgressIndicator]
+ * (a flat `primary` fill, snapped instantly to each new value) with a custom track whose fill is
+ * an `accent` -> `primary` [Brush.linearGradient] - a static visual change that applies regardless
+ * of [reducedMotion], per the issue - and whose *width* is driven by [animateFloatAsState] with a
+ * ~300ms tween instead of snapping. [reducedMotionAwareSpec] collapses that tween to an instant
+ * [androidx.compose.animation.core.snap] under [reducedMotion], reproducing today's shipped
+ * snap-to-value behavior exactly.
+ */
+@Composable
+private fun QuestionProgressBar(
+    progress: Float,
+    reducedMotion: Boolean,
+    modifier: Modifier = Modifier,
+) {
+    val accent = RickAndMortyExtendedTheme.extendedColors.accent
+    val primary = MaterialTheme.colorScheme.primary
+    val trackColor = MaterialTheme.colorScheme.surfaceVariant
+    val animatedProgress by animateFloatAsState(
+        targetValue = progress.coerceIn(0f, 1f),
+        animationSpec = reducedMotionAwareSpec(reducedMotion, PROGRESS_ANIM_DURATION_MS),
+        label = "quiz-progress",
+    )
+    Box(
+        modifier = modifier
+            .height(PROGRESS_BAR_HEIGHT)
+            .clip(PortalRingShape)
+            .background(trackColor),
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxHeight()
+                .fillMaxWidth(animatedProgress)
+                .background(Brush.linearGradient(listOf(accent, primary))),
+        )
     }
 }
 
@@ -477,6 +549,17 @@ private fun answerOptionState(index: Int, state: QuizUiState.Question): AnswerOp
  * announcement (the whole row is one accessibility node, per Compose's default `clickable`
  * merging) alongside the full option text rather than being announced as a separate, disconnected
  * element. E.g. a screen reader announces "A, Rick Sanchez", not just "A".
+ *
+ * R6 (issue #42) layers three motion moments onto this row, all gated by [reducedMotion] via the
+ * shared `core:designsystem` motion primitives (see `MotionEffects.kt`):
+ * - moment 2: a spring-driven 97% press scale + `accent` glow bloom while pressed, on top of
+ *   [Surface]'s own default ripple/state-layer (not a replacement for it).
+ * - moment 3: an 80ms 100%->103%->100% pop the instant this row locks in as the tapped answer
+ *   ([isJustLocked]).
+ * - moment 4: the border/tint color swap (previously instant) now eases over ~250ms.
+ * Reduced motion reproduces exactly today's shipped instant behavior for all three - see
+ * [com.gimenes.alex.rickandmorty.core.designsystem.motion.rememberPressAnimatedFloat] and
+ * [com.gimenes.alex.rickandmorty.core.designsystem.motion.rememberScalePop]'s kdoc.
  */
 @Composable
 private fun AnswerOptionButton(
@@ -484,82 +567,152 @@ private fun AnswerOptionButton(
     optionLetter: Char,
     optionState: AnswerOptionState,
     enabled: Boolean,
+    isJustLocked: Boolean,
+    reducedMotion: Boolean,
     onClick: () -> Unit,
 ) {
     val spacing = RickAndMortyExtendedTheme.spacing
     val extendedColors = RickAndMortyExtendedTheme.extendedColors
 
-    val borderColor: Color
+    val targetBorderColor: Color
     val borderWidth: Dp
-    val containerColor: Color
+    val targetContainerColor: Color
     val tonalElevation: Dp
     when (optionState) {
         AnswerOptionState.CORRECT -> {
-            borderColor = extendedColors.feedbackCorrect
+            targetBorderColor = extendedColors.feedbackCorrect
             borderWidth = 3.dp
-            containerColor = extendedColors.feedbackCorrect.copy(alpha = 0.12f)
+            targetContainerColor = extendedColors.feedbackCorrect.copy(alpha = 0.12f)
             tonalElevation = 4.dp
         }
 
         AnswerOptionState.INCORRECT -> {
-            borderColor = extendedColors.feedbackIncorrect
+            targetBorderColor = extendedColors.feedbackIncorrect
             borderWidth = 3.dp
-            containerColor = extendedColors.feedbackIncorrect.copy(alpha = 0.12f)
+            targetContainerColor = extendedColors.feedbackIncorrect.copy(alpha = 0.12f)
             tonalElevation = 4.dp
         }
 
         AnswerOptionState.NEUTRAL -> {
-            borderColor = MaterialTheme.colorScheme.outline
+            targetBorderColor = MaterialTheme.colorScheme.outline
             borderWidth = 1.dp
-            containerColor = MaterialTheme.colorScheme.surface
+            targetContainerColor = MaterialTheme.colorScheme.surface
             tonalElevation = 0.dp
         }
     }
 
-    Surface(
-        onClick = onClick,
-        enabled = enabled,
-        modifier = Modifier.fillMaxWidth().heightIn(min = MIN_ANSWER_HEIGHT),
-        shape = RickAndMortyShapes.medium,
-        color = containerColor,
-        tonalElevation = tonalElevation,
-        border = BorderStroke(borderWidth, borderColor),
+    // Moment 4: border/tint color eases in over FEEDBACK_TRANSITION_MS instead of swapping
+    // instantly; snap()'d under reduced motion (see reducedMotionAwareSpec) to reproduce today's
+    // instant swap exactly.
+    val colorSpec = reducedMotionAwareSpec<Color>(reducedMotion, FEEDBACK_TRANSITION_MS)
+    val borderColor by animateColorAsState(targetBorderColor, colorSpec, label = "answer-border-color")
+    val containerColor by animateColorAsState(targetContainerColor, colorSpec, label = "answer-container-color")
+
+    val interactionSource = remember { MutableInteractionSource() }
+    // Moment 2: press scale + glow bloom, both driven off the same press interaction and both
+    // collapsing to "no-op" (rest value only) under reduced motion.
+    val pressScale by rememberPressAnimatedFloat(
+        interactionSource = interactionSource,
+        reducedMotion = reducedMotion,
+        pressedValue = PRESS_SCALE,
+    )
+    val glowAlpha by rememberPressAnimatedFloat(
+        interactionSource = interactionSource,
+        reducedMotion = reducedMotion,
+        pressedValue = 1f,
+        restValue = 0f,
+    )
+    // Moment 3: 80ms lock-in pop, fired once this row becomes the tapped/locked answer.
+    val lockPopScale by rememberScalePop(
+        trigger = isJustLocked,
+        reducedMotion = reducedMotion,
+        peakScale = LOCK_POP_SCALE,
+        durationMillis = LOCK_POP_DURATION_MS,
+    )
+    val accentGlow = extendedColors.accent
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .graphicsLayer {
+                val combinedScale = pressScale * lockPopScale
+                scaleX = combinedScale
+                scaleY = combinedScale
+            },
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(horizontal = spacing.md, vertical = spacing.sm),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween,
+        Surface(
+            onClick = onClick,
+            enabled = enabled,
+            interactionSource = interactionSource,
+            modifier = Modifier.fillMaxWidth().heightIn(min = MIN_ANSWER_HEIGHT),
+            shape = RickAndMortyShapes.medium,
+            color = containerColor,
+            tonalElevation = tonalElevation,
+            border = BorderStroke(borderWidth, borderColor),
         ) {
             Row(
-                modifier = Modifier.weight(1f),
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = spacing.md, vertical = spacing.sm),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(spacing.sm),
+                horizontalArrangement = Arrangement.SpaceBetween,
             ) {
-                AnswerLetterBadge(letter = optionLetter, optionState = optionState)
-                Text(
-                    text = text,
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onSurface,
+                Row(
                     modifier = Modifier.weight(1f),
-                )
-            }
-            when (optionState) {
-                AnswerOptionState.CORRECT -> FeedbackTag(
-                    label = "Correct",
-                    color = extendedColors.feedbackCorrect,
-                    icon = { CorrectMarkIcon(extendedColors.feedbackCorrect) },
-                )
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(spacing.sm),
+                ) {
+                    AnswerLetterBadge(
+                        letter = optionLetter,
+                        optionState = optionState,
+                        reducedMotion = reducedMotion,
+                    )
+                    Text(
+                        text = text,
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        modifier = Modifier.weight(1f),
+                    )
+                }
+                when (optionState) {
+                    AnswerOptionState.CORRECT -> FeedbackTag(
+                        label = "Correct",
+                        color = extendedColors.feedbackCorrect,
+                        icon = { CorrectMarkIcon(extendedColors.feedbackCorrect) },
+                    )
 
-                AnswerOptionState.INCORRECT -> FeedbackTag(
-                    label = "Incorrect",
-                    color = extendedColors.feedbackIncorrect,
-                    icon = { IncorrectMarkIcon(extendedColors.feedbackIncorrect) },
-                )
+                    AnswerOptionState.INCORRECT -> FeedbackTag(
+                        label = "Incorrect",
+                        color = extendedColors.feedbackIncorrect,
+                        icon = { IncorrectMarkIcon(extendedColors.feedbackIncorrect) },
+                    )
 
-                AnswerOptionState.NEUTRAL -> Unit
+                    AnswerOptionState.NEUTRAL -> Unit
+                }
             }
+        }
+
+        // Moment 2's glow bloom: a soft accent ring hugging the row's own rounded corners,
+        // drawn above the Surface (so it isn't hidden underneath its opaque container fill) but
+        // at low peak alpha and concentrated toward the edges so it reads as a bloom, not a wash
+        // that would obscure the option text. No pointer-input modifiers of its own, so it never
+        // steals touches from the Surface beneath it.
+        if (glowAlpha > 0f) {
+            Box(
+                modifier = Modifier
+                    .matchParentSize()
+                    .clip(RickAndMortyShapes.medium)
+                    .drawBehind {
+                        drawRoundRect(
+                            brush = Brush.radialGradient(
+                                0f to accentGlow.copy(alpha = 0f),
+                                0.7f to accentGlow.copy(alpha = 0f),
+                                1f to accentGlow.copy(alpha = glowAlpha * PRESS_GLOW_MAX_ALPHA),
+                            ),
+                            cornerRadius = CornerRadius(ANSWER_GLOW_CORNER_RADIUS.toPx()),
+                        )
+                    },
+            )
         }
     }
 }
@@ -575,17 +728,34 @@ private fun AnswerOptionButton(
  * `onPrimaryContainer` to a `surfaceVariant` fill with an `outline`-colored ring border - this
  * keeps `primary`/`accent` visually reserved for actual selection/feedback moments rather than
  * "just sitting there" on every unanswered option. Correct/incorrect reveal states are untouched.
+ *
+ * R6 (issue #42) moment 4: the container/content color swap on reveal now eases over the same
+ * ~250ms as [AnswerOptionButton]'s border/tint (both driven by [FEEDBACK_TRANSITION_MS]) and is
+ * paired with a 100%->115%->100% scale flourish timed to the same duration, firing once when this
+ * badge first reveals (`optionState` leaving `NEUTRAL`). Both collapse to an instant swap/no pop
+ * under [reducedMotion] - today's shipped behavior.
  */
 @Composable
-private fun AnswerLetterBadge(letter: Char, optionState: AnswerOptionState) {
+private fun AnswerLetterBadge(letter: Char, optionState: AnswerOptionState, reducedMotion: Boolean) {
     val spacing = RickAndMortyExtendedTheme.spacing
     val extendedColors = RickAndMortyExtendedTheme.extendedColors
-    val (containerColor, contentColor) = when (optionState) {
+    val (targetContainerColor, targetContentColor) = when (optionState) {
         AnswerOptionState.CORRECT -> extendedColors.feedbackCorrect to extendedColors.onFeedbackCorrect
         AnswerOptionState.INCORRECT -> extendedColors.feedbackIncorrect to extendedColors.onFeedbackIncorrect
         AnswerOptionState.NEUTRAL -> MaterialTheme.colorScheme.surfaceVariant to
             MaterialTheme.colorScheme.onSurfaceVariant
     }
+    val colorSpec = reducedMotionAwareSpec<Color>(reducedMotion, FEEDBACK_TRANSITION_MS)
+    val containerColor by animateColorAsState(targetContainerColor, colorSpec, label = "badge-container-color")
+    val contentColor by animateColorAsState(targetContentColor, colorSpec, label = "badge-content-color")
+    val revealed = optionState != AnswerOptionState.NEUTRAL
+    val badgeScale by rememberScalePop(
+        trigger = revealed,
+        reducedMotion = reducedMotion,
+        peakScale = BADGE_POP_SCALE,
+        durationMillis = FEEDBACK_TRANSITION_MS,
+    )
+
     Surface(
         shape = PortalRingShape,
         color = containerColor,
@@ -594,7 +764,12 @@ private fun AnswerLetterBadge(letter: Char, optionState: AnswerOptionState) {
         } else {
             null
         },
-        modifier = Modifier.size(spacing.lg),
+        modifier = Modifier
+            .size(spacing.lg)
+            .graphicsLayer {
+                scaleX = badgeScale
+                scaleY = badgeScale
+            },
     ) {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             Text(
@@ -673,6 +848,19 @@ private fun ResultsContent(
         else -> "Yikes. Get schwifty and give it another shot."
     }
 
+    // R6 (issue #42) moment 6: the score fades+scales in once, the first time this Results
+    // composable enters composition (a fresh `remember`/`LaunchedEffect(Unit)` per entry into the
+    // Results state - see this file's kdoc note on why this is screen-local Compose state, not
+    // QuizViewModel state: it's purely "has this composable's score already animated in," not
+    // anything QuizUiState.Results needs to know about). Under reduced motion the Animatable
+    // starts (and stays) at its final value, so the score renders fully-formed on the very first
+    // frame - no fade/scale at all, not just a faster one.
+    val reducedMotion by rememberReducedMotionEnabled()
+    val scoreReveal = remember { Animatable(if (reducedMotion) 1f else 0f) }
+    LaunchedEffect(Unit) {
+        scoreReveal.animateTo(1f, reducedMotionAwareSpec(reducedMotion, SCORE_REVEAL_DURATION_MS))
+    }
+
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(spacing.lg),
@@ -689,6 +877,13 @@ private fun ResultsContent(
             Text(
                 text = "${state.score} / ${state.total}",
                 style = MaterialTheme.typography.displayMedium,
+                modifier = Modifier.graphicsLayer {
+                    alpha = scoreReveal.value
+                    val scale = SCORE_REVEAL_MIN_SCALE +
+                        (1f - SCORE_REVEAL_MIN_SCALE) * scoreReveal.value
+                    scaleX = scale
+                    scaleY = scale
+                },
             )
         }
         item {
@@ -789,3 +984,41 @@ private val MIN_ANSWER_HEIGHT = 56.dp
 
 private const val HIGH_SCORE_THRESHOLD = 0.8f
 private const val MID_SCORE_THRESHOLD = 0.5f
+
+// ---------------------------------------------------------------------------------------------
+// R6 (issue #42) motion constants - see the individual moments' kdoc (QuestionContent,
+// QuestionProgressBar, AnswerOptionButton, AnswerLetterBadge, ResultsContent) for what each drives.
+// ---------------------------------------------------------------------------------------------
+
+/** Moment 5: the progress bar fill's animated-width tween duration. */
+private const val PROGRESS_ANIM_DURATION_MS = 300
+
+/** Moment 5: track/fill height, matching [androidx.compose.material3.LinearProgressIndicator]'s default. */
+private val PROGRESS_BAR_HEIGHT = 4.dp
+
+/** Moment 4: border/tint/badge color transition (and the badge's timed scale flourish) duration. */
+private const val FEEDBACK_TRANSITION_MS = 250
+
+/** Moment 3: the tapped row's lock-in pop total duration (up + down). */
+private const val LOCK_POP_DURATION_MS = 80
+
+/** Moment 3: the tapped row's lock-in pop peak scale (100% -> 103% -> 100%). */
+private const val LOCK_POP_SCALE = 1.03f
+
+/** Moment 4: the feedback badge's reveal pop peak scale (100% -> 115% -> 100%). */
+private const val BADGE_POP_SCALE = 1.15f
+
+/** Moment 2: press-scale target (100% -> 97%). */
+private const val PRESS_SCALE = 0.97f
+
+/** Moment 2: peak alpha of the press glow bloom at its most visible (fully pressed). */
+private const val PRESS_GLOW_MAX_ALPHA = 0.35f
+
+/** Moment 2: corner radius the glow bloom is drawn with, matching [RickAndMortyShapes.medium]. */
+private val ANSWER_GLOW_CORNER_RADIUS = 20.dp
+
+/** Moment 6: score reveal fade+scale-in duration on first appearance. */
+private const val SCORE_REVEAL_DURATION_MS = 400
+
+/** Moment 6: score reveal's starting scale (grows from this to 100% as it fades in). */
+private const val SCORE_REVEAL_MIN_SCALE = 0.7f
