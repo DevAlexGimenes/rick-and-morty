@@ -65,7 +65,7 @@ Clean Architecture, strict inward dependency rule, one Gradle module per layer:
 | Images | Coil 3, explicit per-platform disk cache |
 | Navigation | Navigation-Compose (JetBrains KMP fork), type-safe `@Serializable` routes, animated transitions |
 | Fonts | Space Grotesk (headlines) + DM Sans (body/UI), embedded OFL Google Fonts |
-| Testing | `kotlin.test`, JUnit, Compose UI Test, Android instrumented tests (real emulator, not just unit tests) |
+| Testing | `kotlin.test`, JUnit, Compose UI Test, Android instrumented tests, [Maestro](https://maestro.mobile.dev) E2E flows |
 | CI | GitHub Actions — build + full test suite on every PR |
 
 Targets Android (buildable/runnable) and iOS (scaffolded — Kotlin/Native targets are gated to macOS hosts, since Xcode is required to link them; the iOS app hasn't been run on-device).
@@ -80,6 +80,20 @@ Built from the ground up around the show's own portal-green palette (researched 
 - **Portal-ring glyph** — a single Canvas-drawn primitive (ring + radial-gradient glow), reused across the Home hero, mode cards, the app icon, and the splash screen instead of shipping bespoke art for each.
 - **Motion system** — every animated moment (press feedback, answer-lock, feedback reveal, streak celebration, screen transitions) is gated by a shared `rememberReducedMotionEnabled()` primitive that reads the OS accessibility setting live; every animation has a static, instant fallback.
 - **No native shadows** — glow/elevation effects are hand-drawn gradients (`Canvas`/`drawBehind`) rather than `Modifier.shadow`, for consistent rendering across Compose Multiplatform targets.
+
+---
+
+## Testing strategy
+
+Three layers, each covering what the others can't — added incrementally, never at the expense of one another:
+
+- **Unit tests** (`commonTest`, `kotlin.test`) — use-case logic, ViewModel state machines, DTO/entity mappers, and even the color system (`ColorContrastTest` asserts every text/fill pairing meets WCAG AA). Fast, no device needed.
+- **Compose UI / instrumented tests** (`androidInstrumentedTest`, real emulator) — accessibility-tree correctness (merged semantics, hidden decorative nodes, live regions) and real Room persistence. Scoped to single screens/components, not multi-screen journeys.
+- **Maestro E2E flows** (`.maestro/flows/`) — black-box journeys through the actual installed app (real Koin, real network, real database), covering what the other two layers can't: tapping through a full 10-question quiz to Results, building a streak in Guess the Character to Run Ended, both exit-confirmation dialogs. This replaces what used to be manual tap-through verification on every PR.
+
+Added by SENTINEL (test strategy) and FORGE after auditing the existing suite — full flow list in `.maestro/flows/`, run locally with `maestro test .maestro/flows/` against a device with the debug build installed. Not wired into CI yet; that's a deliberate, separate later decision once the flow suite has proven stable, rather than bolting a multi-minute emulator boot onto every PR from day one.
+
+One flow (`guess_character_exit_confirmation`) is honestly documented as flaky rather than forced to pass: it needs a nonzero streak before a single wrong answer ends the run, and the correct answer is randomized from live API data (~25% odds per guess) with no deterministic seed to control it yet — tracked in [issue #59](../../issues/59).
 
 ---
 
