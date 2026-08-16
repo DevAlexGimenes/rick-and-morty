@@ -52,9 +52,15 @@ kotlin {
                 implementation(kotlin("test"))
                 implementation(libs.androidx.junit)
                 implementation(libs.androidx.espresso.core)
+                implementation(project.dependencies.platform(libs.androidx.compose.bom))
+                implementation(libs.androidx.compose.ui.test.junit4)
             }
         }
     }
+}
+
+dependencies {
+    debugImplementation(libs.androidx.compose.ui.test.manifest)
 }
 
 android {

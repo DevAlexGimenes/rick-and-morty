@@ -16,11 +16,9 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -53,6 +51,8 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.gimenes.alex.rickandmorty.core.designsystem.backhandler.PlatformBackHandler
 import com.gimenes.alex.rickandmorty.core.designsystem.component.CachedCharacterImage
+import com.gimenes.alex.rickandmorty.core.designsystem.component.PrimaryGradientButton
+import com.gimenes.alex.rickandmorty.core.designsystem.component.SecondaryOutlinedButton
 import com.gimenes.alex.rickandmorty.core.designsystem.theme.RickAndMortyExtendedTheme
 import com.gimenes.alex.rickandmorty.core.designsystem.theme.RickAndMortyShapes
 import org.koin.compose.viewmodel.koinViewModel
@@ -247,12 +247,11 @@ private fun FullScreenMessage(
                 style = MaterialTheme.typography.bodyLarge,
                 textAlign = TextAlign.Center,
             )
-            Button(
+            PrimaryGradientButton(
+                text = primaryActionLabel,
                 onClick = onPrimaryAction,
-                modifier = Modifier.fillMaxWidth().heightIn(min = MIN_TOUCH_TARGET),
-            ) {
-                Text(primaryActionLabel)
-            }
+                modifier = Modifier.fillMaxWidth(),
+            )
             if (secondaryActionLabel != null && onSecondaryAction != null) {
                 TextButton(
                     onClick = onSecondaryAction,
@@ -682,18 +681,16 @@ private fun RunEndedContent(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(spacing.md),
         ) {
-            OutlinedButton(
+            SecondaryOutlinedButton(
+                text = "Home",
                 onClick = onExit,
-                modifier = Modifier.weight(1f).heightIn(min = MIN_TOUCH_TARGET),
-            ) {
-                Text("Home")
-            }
-            Button(
+                modifier = Modifier.weight(1f),
+            )
+            PrimaryGradientButton(
+                text = "Play Again",
                 onClick = onPlayAgain,
-                modifier = Modifier.weight(1f).heightIn(min = MIN_TOUCH_TARGET),
-            ) {
-                Text("Play Again")
-            }
+                modifier = Modifier.weight(1f),
+            )
         }
     }
 }

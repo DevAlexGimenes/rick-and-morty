@@ -17,13 +17,11 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -55,6 +53,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.layout.PaddingValues
+import com.gimenes.alex.rickandmorty.core.designsystem.component.PrimaryGradientButton
+import com.gimenes.alex.rickandmorty.core.designsystem.component.SecondaryOutlinedButton
 import com.gimenes.alex.rickandmorty.core.designsystem.theme.PortalRingShape
 import com.gimenes.alex.rickandmorty.core.designsystem.theme.RickAndMortyExtendedTheme
 import com.gimenes.alex.rickandmorty.core.designsystem.theme.RickAndMortyShapes
@@ -153,12 +153,11 @@ private fun CategorySelectContent(
         }
 
         if (state.selectedCategory != null) {
-            Button(
+            PrimaryGradientButton(
+                text = "Start Quiz",
                 onClick = onStartQuiz,
-                modifier = Modifier.fillMaxWidth().heightIn(min = MIN_TOUCH_TARGET),
-            ) {
-                Text("Start Quiz")
-            }
+                modifier = Modifier.fillMaxWidth(),
+            )
         }
     }
 }
@@ -321,12 +320,11 @@ private fun FullScreenMessage(
                 style = MaterialTheme.typography.bodyLarge,
                 textAlign = TextAlign.Center,
             )
-            Button(
+            PrimaryGradientButton(
+                text = primaryActionLabel,
                 onClick = onPrimaryAction,
-                modifier = Modifier.fillMaxWidth().heightIn(min = MIN_TOUCH_TARGET),
-            ) {
-                Text(primaryActionLabel)
-            }
+                modifier = Modifier.fillMaxWidth(),
+            )
             if (secondaryActionLabel != null && onSecondaryAction != null) {
                 TextButton(
                     onClick = onSecondaryAction,
@@ -447,12 +445,11 @@ private fun QuestionContent(
         }
 
         if (state.isLocked) {
-            Button(
+            PrimaryGradientButton(
+                text = if (state.questionNumber == state.totalQuestions) "See Results" else "Next",
                 onClick = onNext,
-                modifier = Modifier.fillMaxWidth().heightIn(min = MIN_TOUCH_TARGET),
-            ) {
-                Text(if (state.questionNumber == state.totalQuestions) "See Results" else "Next")
-            }
+                modifier = Modifier.fillMaxWidth(),
+            )
         }
     }
 }
@@ -573,6 +570,11 @@ private fun AnswerOptionButton(
  * disconnected accessibility node. Uses the existing [PortalRingShape] token ("badges, streak
  * pips, avatar frames" per its own doc) and [RickAndMortyExtendedTheme] color/spacing tokens -
  * no new hardcoded shape or color values.
+ *
+ * R3 (issue #39): the neutral (unanswered) fill changed from `primaryContainer`/
+ * `onPrimaryContainer` to a `surfaceVariant` fill with an `outline`-colored ring border - this
+ * keeps `primary`/`accent` visually reserved for actual selection/feedback moments rather than
+ * "just sitting there" on every unanswered option. Correct/incorrect reveal states are untouched.
  */
 @Composable
 private fun AnswerLetterBadge(letter: Char, optionState: AnswerOptionState) {
@@ -581,12 +583,17 @@ private fun AnswerLetterBadge(letter: Char, optionState: AnswerOptionState) {
     val (containerColor, contentColor) = when (optionState) {
         AnswerOptionState.CORRECT -> extendedColors.feedbackCorrect to extendedColors.onFeedbackCorrect
         AnswerOptionState.INCORRECT -> extendedColors.feedbackIncorrect to extendedColors.onFeedbackIncorrect
-        AnswerOptionState.NEUTRAL -> MaterialTheme.colorScheme.primaryContainer to
-            MaterialTheme.colorScheme.onPrimaryContainer
+        AnswerOptionState.NEUTRAL -> MaterialTheme.colorScheme.surfaceVariant to
+            MaterialTheme.colorScheme.onSurfaceVariant
     }
     Surface(
         shape = PortalRingShape,
         color = containerColor,
+        border = if (optionState == AnswerOptionState.NEUTRAL) {
+            BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
+        } else {
+            null
+        },
         modifier = Modifier.size(spacing.lg),
     ) {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -700,18 +707,16 @@ private fun ResultsContent(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(spacing.md),
             ) {
-                OutlinedButton(
+                SecondaryOutlinedButton(
+                    text = "Home",
                     onClick = onExit,
-                    modifier = Modifier.weight(1f).heightIn(min = MIN_TOUCH_TARGET),
-                ) {
-                    Text("Home")
-                }
-                Button(
+                    modifier = Modifier.weight(1f),
+                )
+                PrimaryGradientButton(
+                    text = "Replay",
                     onClick = onReplay,
-                    modifier = Modifier.weight(1f).heightIn(min = MIN_TOUCH_TARGET),
-                ) {
-                    Text("Replay")
-                }
+                    modifier = Modifier.weight(1f),
+                )
             }
         }
     }
