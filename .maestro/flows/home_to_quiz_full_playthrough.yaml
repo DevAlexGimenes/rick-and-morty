@@ -1,0 +1,49 @@
+# P0 flow (issue #58, Phase 1): Home -> Trivia Quiz -> full 10-question playthrough -> Results ->
+# back to Home. Answers are always tapped at index 0 regardless of correctness - this flow only
+# cares that a full round can be completed end to end (Category Select -> Loading -> Question x10
+# -> Results -> Home), not the score. Every AnswerOptionButton row always renders (correct rows
+# just show a different feedback tag/color), so this never risks an early state change the way the
+# Guess the Character flows do.
+appId: com.gimenes.alex.rickandmorty
+---
+- launchApp
+- tapOn: "Trivia Quiz"
+- tapOn: "Character"
+- tapOn: "Start Quiz"
+
+# Question 1 of 10.
+- tapOn:
+    id: "quiz_answer_option_0"
+- tapOn:
+    id: "quiz_next_button"
+
+# Questions 2 through 10 (9 more rounds) - loops the same tap-answer/tap-next pair.
+- repeat:
+    times: 9
+    commands:
+      - tapOn:
+          id: "quiz_answer_option_0"
+      - tapOn:
+          id: "quiz_next_button"
+
+# Results screen: assert the score/summary content rendered, then scroll past the missed-question
+# review list (variable length depending on score) to reach the Home CTA - "Replay"/"Home" sit
+# below that list and aren't guaranteed to be in the initial viewport, so assertVisible on them
+# has to happen after scrolling, not before.
+- assertVisible:
+    text: "Results"
+- scrollUntilVisible:
+    element:
+      text: "Home"
+    direction: DOWN
+- assertVisible:
+    text: "Replay"
+- tapOn: "Home"
+
+# Back on Home.
+- assertVisible:
+    id: "home_hero_kicker"
+- assertVisible:
+    text: "Trivia Quiz"
+- assertVisible:
+    text: "Guess the Character"

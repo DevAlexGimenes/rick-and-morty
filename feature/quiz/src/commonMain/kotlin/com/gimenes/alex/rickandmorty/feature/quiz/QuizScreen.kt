@@ -56,6 +56,7 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
@@ -535,7 +536,7 @@ private fun QuestionContent(
             PrimaryGradientButton(
                 text = if (state.questionNumber == state.totalQuestions) "See Results" else "Next",
                 onClick = onNext,
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().testTag(NEXT_BUTTON_TEST_TAG),
             )
         }
     }
@@ -697,7 +698,10 @@ private fun AnswerOptionButton(
             onClick = onClick,
             enabled = enabled,
             interactionSource = interactionSource,
-            modifier = Modifier.fillMaxWidth().heightIn(min = MIN_ANSWER_HEIGHT),
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(min = MIN_ANSWER_HEIGHT)
+                .testTag("$ANSWER_OPTION_TEST_TAG_PREFIX${optionLetter - 'A'}"),
             shape = RickAndMortyShapes.medium,
             color = containerColor,
             tonalElevation = tonalElevation,
@@ -1030,6 +1034,14 @@ private val MIN_ANSWER_HEIGHT = 56.dp
 
 private const val HIGH_SCORE_THRESHOLD = 0.8f
 private const val MID_SCORE_THRESHOLD = 0.5f
+
+/**
+ * Maestro E2E test hooks (issue #58, Phase 1). [androidx.compose.ui.platform.testTag] is a
+ * testing-only semantics property - real accessibility services never read it - matching
+ * [com.gimenes.alex.rickandmorty.home.HERO_GLYPH_TEST_TAG]'s precedent.
+ */
+private const val ANSWER_OPTION_TEST_TAG_PREFIX = "quiz_answer_option_"
+private const val NEXT_BUTTON_TEST_TAG = "quiz_next_button"
 
 // ---------------------------------------------------------------------------------------------
 // R6 (issue #42) motion constants - see the individual moments' kdoc (QuestionContent,

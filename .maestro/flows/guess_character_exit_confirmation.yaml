@@ -1,0 +1,80 @@
+# P0 flow (issue #58, Phase 1): reach a Round with streak > 0, open the exit-confirmation dialog
+# via the top bar's exit button, dismiss it (stay in the Round, streak preserved), reopen it,
+# confirm it (end the run), and land back on Home.
+#
+# KNOWN FLAKINESS (see this repo's PR notes / FORGE's report for issue #58): the correct answer's
+# position is genuinely randomized per round from live API data (25% chance per guess of landing on
+# option 0), and any miss ends the whole run immediately rather than just resetting the streak - so
+# "reach streak > 0" means "get a correct guess before a wrong one," which is NOT bounded the way
+# home_to_guess_character_playthrough.yaml's "eventually miss" loop is. `retry`'s effective budget
+# in this Maestro CLI/environment combination was observed to be time-boxed at roughly 60 seconds
+# regardless of `maxRetries` (RetryCommand's model has no `timeout` field to raise that - confirmed
+# by inspecting maestro-orchestra-models-1.40.0.jar), which is not always enough real-time headroom
+# to guarantee a first-guess hit. A deterministic test-data seed/DI hook (SENTINEL's plan already
+# flags this as a separate, out-of-scope ATLAS decision) is the real fix for full reliability here;
+# short of that, this flow is written as correctly as the tooling allows and documented as the one
+# flow in this suite that can occasionally need re-running.
+appId: com.gimenes.alex.rickandmorty
+---
+- launchApp
+- tapOn: "Guess the Character"
+
+- retry:
+    maxRetries: 40
+    commands:
+      - runFlow:
+          when:
+            visible:
+              text: "Run Ended"
+          commands:
+            - tapOn: "Play Again"
+      - extendedWaitUntil:
+          visible:
+            id: "guess_answer_option_0"
+          timeout: 4000
+      - tapOn:
+          id: "guess_answer_option_0"
+      - extendedWaitUntil:
+          visible:
+            id: "guess_streak_counter"
+            text: "Streak: [1-9][0-9]*"
+          timeout: 1500
+      - assertVisible:
+          id: "guess_streak_counter"
+          text: "Streak: [1-9][0-9]*"
+
+# In a Round with a nonzero streak now.
+- assertVisible:
+    id: "guess_streak_counter"
+    text: "Streak: [1-9][0-9]*"
+
+# Open the exit confirmation, then dismiss it ("Keep Playing").
+- tapOn:
+    id: "top_bar_exit_button"
+- assertVisible:
+    text: "End this run?"
+- tapOn:
+    id: "confirm_exit_dialog_dismiss"
+
+# Still in the Round - streak preserved (still nonzero), not reset.
+- assertVisible:
+    id: "guess_streak_counter"
+    text: "Streak: [1-9][0-9]*"
+- assertVisible:
+    id: "guess_answer_option_0"
+
+# Reopen and this time confirm ("End Run").
+- tapOn:
+    id: "top_bar_exit_button"
+- assertVisible:
+    text: "End this run?"
+- tapOn:
+    id: "confirm_exit_dialog_confirm"
+
+# Back on Home.
+- assertVisible:
+    id: "home_hero_kicker"
+- assertVisible:
+    text: "Trivia Quiz"
+- assertVisible:
+    text: "Guess the Character"

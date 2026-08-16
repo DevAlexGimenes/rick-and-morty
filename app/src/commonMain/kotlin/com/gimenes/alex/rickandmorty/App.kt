@@ -9,7 +9,10 @@ import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.testTagsAsResourceId
 import androidx.compose.ui.unit.dp
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -47,7 +50,19 @@ fun App() {
         val reducedMotion by rememberReducedMotionEnabled()
         val slideOffsetPx = with(LocalDensity.current) { SCREEN_TRANSITION_SLIDE_DISTANCE.roundToPx() }
 
-        NavHost(navController = navController, startDestination = Routes.Home) {
+        // Exposes every androidx.compose.ui.platform.testTag in this subtree as an Android
+        // resource-id in the accessibility tree (issue #58, Phase 1). Compose's own
+        // ComposeTestRule-based instrumented tests (e.g. HomeHeroAccessibilityInstrumentedTest)
+        // already read testTag via Compose's own semantics tree and don't need this, but
+        // Maestro drives the app externally through UiAutomator/the platform accessibility tree,
+        // which only exposes testTag as `resource-id` when this flag is set - without it,
+        // Maestro's `id:` selectors can't find any testTag'd node on Android. Set once, as high
+        // in the hierarchy as the testTag'd screens live, per Compose's own recommendation.
+        NavHost(
+            navController = navController,
+            startDestination = Routes.Home,
+            modifier = Modifier.semantics { testTagsAsResourceId = true },
+        ) {
             composable<Routes.Home>(
                 exitTransition = { fadeSlideExit(reducedMotion, -slideOffsetPx) },
                 popEnterTransition = { fadeSlideEnter(reducedMotion, -slideOffsetPx) },
