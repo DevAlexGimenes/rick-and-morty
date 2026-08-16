@@ -18,16 +18,20 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.State
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 
 /**
  * Reduced-motion-aware building blocks for the small, repeated "press/lock/reveal" animation
  * moments used by the game screens (Trivia Quiz - issue #42/R6 - and, per that issue's kdoc,
- * intended for reuse by Guess the Character's near-identical R7 follow-up). None of these decide
- * *whether* to reduce motion themselves - every one takes a `reducedMotion: Boolean` (read once
- * per screen via [rememberReducedMotionEnabled] and threaded down), so callers stay in control of
- * where that read happens, matching the rest of this project's reduced-motion call sites
- * (`App.kt`'s nav transitions, `GuessCharacterScreen`'s round `Crossfade`).
+ * reused by Guess the Character's near-identical R7 follow-up, which also added
+ * [rememberValuePop] and [rememberKeyedValuePop] here rather than duplicating logic locally - see
+ * their kdoc for the two gaps R6's original [rememberScalePop]/[rememberPressAnimatedFloat]
+ * didn't cover). None of these decide *whether* to reduce motion themselves - every one takes a
+ * `reducedMotion: Boolean` (read once per screen via [rememberReducedMotionEnabled] and threaded
+ * down), so callers stay in control of where that read happens, matching the rest of this
+ * project's reduced-motion call sites (`App.kt`'s nav transitions, `GuessCharacterScreen`'s round
+ * `Crossfade`).
  */
 
 /**
@@ -69,14 +73,48 @@ fun rememberPressAnimatedFloat(
 }
 
 /**
- * A one-shot "pop" - scale ramps from 1f up to [peakScale] and back to 1f over [durationMillis]
- * (split evenly between the two legs) - fired every time [trigger] flips from `false` to `true`.
- * Used for issue #42 moment 3 (an answer row's 80ms lock-in pop to 103%) and moment 4 (a feedback
- * badge's 250ms reveal flourish to 115%), which are otherwise identical "pop once on this boolean
- * becoming true" effects at different scales/durations.
+ * A one-shot "pop" - the value ramps from [baseValue] up to [peakValue] and back to [baseValue]
+ * over [durationMillis] (split evenly between the two legs) - fired every time [trigger] flips
+ * from `false` to `true`. The base/peak generalization of what issue #42 originally shipped as
+ * [rememberScalePop] (which always popped a *scale* from 1f): issue #47/R7's Guess the Character
+ * portal-frame intensify (moment 2) needed the identical one-shot up/down shape for a *glow alpha*
+ * popping from `0f` to `1f`, not a scale from `1f`, so this is the shared shape both now sit on
+ * top of - see [rememberScalePop]'s kdoc for why that function still exists as a thin wrapper
+ * rather than being replaced at its call sites.
  *
- * Under [reducedMotion] (or while [trigger] is `false`) the scale is held/snapped at `1f` - the
- * "instant state change, no pop" fallback, not a shorter pop.
+ * Under [reducedMotion] (or while [trigger] is `false`) the value is held/snapped at [baseValue] -
+ * the "instant state change, no pop" fallback, not a shorter pop.
+ */
+@Composable
+fun rememberValuePop(
+    trigger: Boolean,
+    reducedMotion: Boolean,
+    baseValue: Float,
+    peakValue: Float,
+    durationMillis: Int,
+): State<Float> {
+    val value = remember { Animatable(baseValue) }
+    LaunchedEffect(trigger, reducedMotion) {
+        if (!trigger || reducedMotion) {
+            value.snapTo(baseValue)
+            return@LaunchedEffect
+        }
+        val halfDuration = durationMillis / 2
+        value.animateTo(peakValue, tween(halfDuration, easing = LinearOutSlowInEasing))
+        value.animateTo(baseValue, tween(halfDuration, easing = FastOutLinearInEasing))
+    }
+    // Animatable doesn't itself implement State<T> - derivedStateOf adapts its snapshot-backed
+    // `.value` into a proper State so callers can use the familiar `by rememberValuePop(...)`
+    // delegate syntax.
+    return remember { derivedStateOf { value.value } }
+}
+
+/**
+ * A one-shot scale "pop" from 1f up to [peakScale] and back to 1f - the original issue #42 shape,
+ * kept as its own function (rather than requiring every existing call site to spell out
+ * `baseValue = 1f`) since a *scale* popping from its natural resting value of 1f is by far the
+ * most common case ([QuestionContent]'s answer-row lock-in pop, its feedback badge's reveal pop).
+ * See [rememberValuePop] for the general form this now delegates to.
  */
 @Composable
 fun rememberScalePop(
@@ -84,19 +122,53 @@ fun rememberScalePop(
     reducedMotion: Boolean,
     peakScale: Float,
     durationMillis: Int,
+): State<Float> = rememberValuePop(
+    trigger = trigger,
+    reducedMotion = reducedMotion,
+    baseValue = 1f,
+    peakValue = peakScale,
+    durationMillis = durationMillis,
+)
+
+/**
+ * A one-shot "pop" from [baseValue] to [peakValue] and back, fired whenever [key] changes to a
+ * *new* value - not on the composable's first composition with that key, and not by comparing a
+ * boolean's own false/true transition the way [rememberValuePop]/[rememberScalePop] do.
+ *
+ * This exists for R7's streak-counter celebration (moment 3): [rememberValuePop]'s boolean-trigger
+ * shape works when the caller has some other state that naturally cycles back to `false` between
+ * occurrences (e.g. Trivia's/Guess the Character's `state.isLocked`, which resets to `false` every
+ * time a fresh question/round begins). A running streak count has no such reset - it only ever
+ * increases for the lifetime of a run - so there's no `false` state to re-arm a boolean trigger
+ * between one correct answer and the next. Popping on *key identity change* instead (each new
+ * streak value is a new [key]) sidesteps that entirely: every distinct value fires its own pop,
+ * with no extra "did this already fire" bookkeeping required of the caller.
+ *
+ * Under [reducedMotion] the value is held/snapped at [baseValue], matching [rememberValuePop]'s
+ * fallback.
+ */
+@Composable
+fun rememberKeyedValuePop(
+    key: Any?,
+    reducedMotion: Boolean,
+    baseValue: Float,
+    peakValue: Float,
+    durationMillis: Int,
 ): State<Float> {
-    val scale = remember { Animatable(1f) }
-    LaunchedEffect(trigger, reducedMotion) {
-        if (!trigger || reducedMotion) {
-            scale.snapTo(1f)
+    val value = remember { Animatable(baseValue) }
+    val previousKey = remember { mutableStateOf(key) }
+    val hasComposedBefore = remember { mutableStateOf(false) }
+    LaunchedEffect(key, reducedMotion) {
+        val isNewValue = hasComposedBefore.value && previousKey.value != key
+        previousKey.value = key
+        hasComposedBefore.value = true
+        if (!isNewValue || reducedMotion) {
+            value.snapTo(baseValue)
             return@LaunchedEffect
         }
         val halfDuration = durationMillis / 2
-        scale.animateTo(peakScale, tween(halfDuration, easing = LinearOutSlowInEasing))
-        scale.animateTo(1f, tween(halfDuration, easing = FastOutLinearInEasing))
+        value.animateTo(peakValue, tween(halfDuration, easing = LinearOutSlowInEasing))
+        value.animateTo(baseValue, tween(halfDuration, easing = FastOutLinearInEasing))
     }
-    // Animatable doesn't itself implement State<T> - derivedStateOf adapts its snapshot-backed
-    // `.value` into a proper State so callers can use the familiar `by rememberScalePop(...)`
-    // delegate syntax.
-    return remember { derivedStateOf { scale.value } }
+    return remember { derivedStateOf { value.value } }
 }
